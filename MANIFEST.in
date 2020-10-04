@@ -1,0 +1,4 @@
+include LICENSE
+include samestr
+include samestr/convert/kpileup.pl
+include samestr/summarize/*

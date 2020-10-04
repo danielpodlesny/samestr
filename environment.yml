@@ -197,5 +197,3 @@ dependencies:
   - muscle >=3.8.1551
   - samtools=0.1.19
   - ea-utils=1.1.2.537
-  - pip:
-    - samestr==2020.10

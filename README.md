@@ -42,6 +42,8 @@ Currently, installation is possible by cloning this repository and recreating th
 git clone https://github.com/danielpodlesny/samestr.git
 cd samestr
 conda env create
+conda activate samestr
+pip install .
 export PATH=$PATH:${pwd}
 ```
 
