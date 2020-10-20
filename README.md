@@ -44,7 +44,7 @@ cd samestr
 conda env create
 conda activate samestr
 pip install .
-export PATH=$PATH:${pwd}
+export PATH=$PATH:$(pwd)
 ```
 
 ## Requirements
