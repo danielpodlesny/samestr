@@ -44,7 +44,19 @@ cd samestr
 conda env create
 conda activate samestr
 pip install .
-export PATH=$PATH:$(pwd)
+```
+Make sure to add executables to your conda path and set the following file permissions:
+```
+# get conda path
+## pip list | grep 'samestr' 
+samestr_dir=$HOME/.conda/envs/samestr/lib/python2.7/site-packages/samestr
+
+# add paths
+export PATH=$PATH:${samestr_dir}/
+export PATH=$PATH:${samestr_dir}/convert/
+
+# change permissions
+chmod +x ${samestr_dir}/convert/*py
 ```
 
 ## Requirements
