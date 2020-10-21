@@ -76,7 +76,8 @@ strain_cooc <- sstr_data %>%
   summarize(n.shared = sum(shared == T, na.rm = T), 
             n.analyzed_strains = sum(overlap > min_overlap, na.rm = T), 
             .groups = 'drop') %>% 
-  mutate(taxonomy = 'strain')
+  mutate(taxonomy = 'strain') %>%
+  ungroup()
 
 
 ## taxa counts
@@ -92,15 +93,13 @@ mp_counts <-
 cooc <- 
   bind_rows(cooccurrence$tax_cooc, strain_cooc) %>% 
   mutate(n.analyzed_strains = replace_na(n.analyzed_strains, 0)) %>% 
-  rowwise() %>% 
-  mutate(pair = paste0(sort(c(row, col)), collapse = ';')) %>% 
-  select(-row, -col) %>% 
-  ungroup() %>% 
   pivot_wider(names_from = 'taxonomy', 
               names_prefix = 'n.shared_',
               values_from = 'n.shared', 
-              values_fill = 0) %>% 
-  separate(pair, into = c('row','col'), sep = ';') %>% 
+              values_fill = list(n.shared = 0),
+	      values_fn = sum) %>% 
+  group_by(row, col) %>%
+  summarize_all(.funs = sum) %>%
   relocate(n.analyzed_strains, .after = last_col())
 
 # save output
