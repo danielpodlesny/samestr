@@ -2,7 +2,7 @@
 #Author: Duy Tin Truong (duytin.truong@unitn.it)
 #        at CIBIO, University of Trento, Italy
 
-from sys import stdout, stderr
+import sys
 import argparse as ap
 import bz2
 import gzip
@@ -16,8 +16,6 @@ def read_params():
 
 
 def dump_file(ifn):
-
-    print('started DUMPFILE')
     file_ext = ''
     if ifn.endswith('.tar.bz2'):
         ifile = tarfile.open(ifn, 'r:bz2')
@@ -37,6 +35,12 @@ def dump_file(ifn):
     elif ifn.endswith('.sam'):
         ifile = open(ifn, 'r')
         file_ext = '.sam'
+    elif ifn.endswith('.sra'):
+        oosp = ooSubprocess.ooSubprocess()
+        ifile = oosp.ex('fastq-dump',
+                        args=['-Z', ifn, '--split-spot'],
+                        get_out_pipe=True)
+        file_ext = '.sra'
     else:
         raise Exception('Unrecognized format! The format should be .bz2, .gz'\
                 '.tar.bz2, .tar.gz, .sra, .sam.bz2, .sam, or .fastq\n')
@@ -47,12 +51,12 @@ def dump_file(ifn):
                 ifile2 = ifile.extractfile(tar_info)
                 if ifile2 != None:
                     for line in ifile2:
-                        stdout.write(line)
+                        sys.stdout.write(line)
         else:
             for line in ifile:
-                stdout.write(line)
+                sys.stdout.write(line)
     except:
-        stderr.write('Error while dumping file %s\n' % ifn)
+        sys.stderr.write('Error while dumping file %s\n' % ifn)
         raise
 
 
