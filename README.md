@@ -87,7 +87,7 @@ The input to **`samestr align`** are `fastq` files with the file extension `fast
 samestr align \
 --input-files RAW/*fastq.gz \
 --input-sequence-type paired-end \
---host-bowtie2db Homo_sapiens_Bowtie2_v0.1/Homo_sapiens
+--host-bowtie2db Homo_sapiens_Bowtie2_v0.1/Homo_sapiens \
 --metaphlan2-exe /opt/metaphlan2/metaphlan2.py \
 --mpa /opt/metaphlan2/db_v20/mpa_v20_m200 \
 --mpa-pkl /opt/metaphlan2/db_v20/mpa_v20_m200.pkl \
