@@ -38,7 +38,7 @@ def run_kneaddata(arg):
                 '-t', str(arg['nprocs']),
                 '--max-memory', arg['max_ram']
             ]
-        oosp.ex('kneaddata', args=cmd, verbose=False)
+        oosp.ex(arg['kneaddata_exe'], args=cmd, verbose=False)
 
     if not arg['keep_intermediate_fastq']:
         LOG.debug('Removing temporary files')
@@ -72,7 +72,7 @@ def run_kneaddata(arg):
         tmp_dir = mkdtemp(dir=arg['output_dir'])
         copy(arg['qc_log'], tmp_dir)
 
-        oosp.ex('kneaddata_read_count_table',
+        oosp.ex('%s/kneaddata_read_count_table' % dirname(arg['kneaddata_exe']),
                 args=['--input', tmp_dir, '--output', arg['qc_stats']],
                 verbose=False)
 

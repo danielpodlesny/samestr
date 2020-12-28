@@ -26,7 +26,7 @@ def run_metaphlan(arg):
                 arg['fastq_clean'] = fastq_clean_zipped
 
         LOG.debug('Running: %s' % arg['fastq_clean'])
-        oosp.ex('/opt/metaphlan2/metaphlan2.py',
+        oosp.ex(arg['metaphlan2_exe'],
                 args=[
                     arg['fastq_clean'], '--bowtie2db', arg['mpa'], '--mpa_pkl',
                     arg['mpa_pkl'], '--input_type', 'fastq', '--nproc',

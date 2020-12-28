@@ -38,7 +38,7 @@ def run_fastq_stats(arg):
             if isfile(fastq_clean_zipped):
                 arg['fastq_clean'] = fastq_clean_zipped
 
-        fastq_stats_report = oosp.ex('/usr/bin/fastq-stats',
+        fastq_stats_report = oosp.ex(arg['fastq_stats_exe'],
                                      args=[arg['fastq_clean']],
                                      get_output=True,
                                      verbose=False)
