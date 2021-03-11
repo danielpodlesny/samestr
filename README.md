@@ -219,7 +219,7 @@ The module **`samestr db`** has to be used after installation of SameStr in orde
 
 ### Usage example
 ```
-_samestr.py db \
+samestr db \
 --mpa-pkl metaphlan2/db_v20/mpa_v20_m200.pkl \
 --mpa-markers metaphlan2/all_markers/all_markers.fasta \
 --output-dir marker_db/
