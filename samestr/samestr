@@ -1005,6 +1005,7 @@ def samestr(input_args):
             total_marker_len = 0
             gene_data = []
             pos_data = ['%s\t%s\t%s' % ('contig', 'pos', 'len')]
+            remove_markers = set()
 
             with open(marker_filename, 'w') as marker_file:
 
@@ -1028,6 +1029,12 @@ def samestr(input_args):
                         SeqIO.write(seq, marker_file, 'fasta')
 
                         total_marker_len += marker_len
+                    else:
+                        remove_markers.add(marker)
+
+            if remove_markers:
+                LOG.debug('Dropping markers for %s: %s' % (species, len(remove_markers)))
+                species_markers = [m for m in species_markers if m not in remove_markers]
 
             with open(gene_filename, 'w') as gene_file, \
                     open(cmap_filename, 'w') as cmap_file, \
