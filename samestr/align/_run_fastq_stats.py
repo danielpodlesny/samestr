@@ -8,6 +8,7 @@ LOG = logging.getLogger(__name__)
 
 def parse_fastq_stats(fastq_stats_report):
     fastq_stats = {}
+
     save_metrics = [
         'reads', 'len', 'len_mean', 'len_stdev', 'qual_mean', 'qual_stdev',
         'total_bases'
@@ -15,7 +16,10 @@ def parse_fastq_stats(fastq_stats_report):
     for line in fastq_stats_report.splitlines():
         line = line.split('\t')
         metric = line[0].strip().replace(' ', '_')
-        if metric in save_metrics:
+        if metric.startswith('No_reads_in_'):
+            LOG.error('Not enough reads')
+            exit(0)
+        elif metric in save_metrics:
             fastq_stats[metric] = line[1].strip()
     values = [fastq_stats[m] for m in save_metrics]
     fastq_stats_text = '\t'.join(save_metrics) + '\n' + \
