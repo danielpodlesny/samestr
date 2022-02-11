@@ -235,10 +235,10 @@ conda activate py3.7
 # within python 3 environment 
 import pickle
 import bz2
-mpa_pkl = 'mpa_v30_CHOCOPhlAn_201901.pkl'
-mpa_pkl = pickle.load(bz2.BZ2File(mpa_pkl))
+mpa_pkl_file = 'mpa_v30_CHOCOPhlAn_201901.pkl'
+mpa_pkl = pickle.load(bz2.BZ2File(mpa_pkl_file))
 
-f = bz2.BZ2File(mpa_pkl.replace('.pkl', '.py2.pkl'), 'wb')
+f = bz2.BZ2File(mpa_pkl_file.replace('.pkl', '.py2.pkl'), 'wb')
 pickle.dump(mpa_pkl, f, protocol = 0)
 ```
 
