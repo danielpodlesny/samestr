@@ -8,11 +8,9 @@ LOG = logging.getLogger(__name__)
 def merge_freqs(freqs, freq, freq_name):
     """Appends two numpy arrays."""
 
-    n_samples = freqs.shape[0]
-
     if freqs.shape[1] == freq.shape[1]:
         _freqs = np.append(freqs, freq, axis=0)
-        if _freqs.shape[0] == n_samples + 1:
+        if _freqs.shape[0] == freqs.shape[0] + freq.shape[0]:
             return _freqs, True
         else:
             LOG.error('Could not add array: %s' % freq_name)
@@ -41,7 +39,10 @@ def freq2freqs(args):
         # initialize species freqs arrays
         if species_freqs is None:
             species_freqs = np.load(file_path, allow_pickle=True)
-            samples.append(sample)
+            if isinstance(sample, list):
+                samples += sample
+            else:
+                samples.append(sample)
 
             # if more than one sample, continue samples loop
             if len(args['input_files']) > 1:
@@ -54,7 +55,10 @@ def freq2freqs(args):
             species_freqs, success = merge_freqs(
                 species_freqs, np.load(file_path, allow_pickle=True), sample)
             if success:
-                samples.append(sample)
+                if isinstance(sample, list):
+                    samples += sample
+                else:
+                    samples.append(sample)
 
     # per species, save freqs and names to file
     np.save(output_file, species_freqs, allow_pickle=True)
