@@ -1053,8 +1053,14 @@ def samestr(input_args):
         for file_path in input_args['input_files']:
             file = basename(file_path)
             species = file.split('.')[0]
-            sample = file.split(input_args['input_extension'])[0].replace(
-                '%s.' % species, '')
+
+            # append list if file has been merged before
+            sample_names = file_path.replace(input_args['input_extension'], '.names.txt')
+            if isfile(sample_names):
+                with open(sample_names, 'r') as sn:
+                    sample = sn.read().strip().split('\n')
+            else:
+                    sample = file.split(input_args['input_extension'])[0].replace('%s.' % species, '')
 
             # skip if not in selected species
             if input_args['species']:
