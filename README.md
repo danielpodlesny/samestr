@@ -154,7 +154,7 @@ samestr merge \
 ```
 
 ## filter
-The module **`samestr merge`** provides extensive options for global, per sample, marker, and position filtering of nucleotide variant profiles based on absolute (including n, mean, sd) and relative alignment horizontal and vertical alignment coverage. 
+The module **`samestr filter`** provides extensive options for global, per sample, marker, and position filtering of nucleotide variant profiles based on absolute (including n, mean, sd) and relative alignment horizontal and vertical alignment coverage. 
 
 ### Usage example
 For parallel processing, specify `--nprocs`.
