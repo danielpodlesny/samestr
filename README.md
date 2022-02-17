@@ -37,32 +37,15 @@ Here, we present a pipeline to process data starting from raw single or paired-e
 - [db](#db): regenerate species marker db from MetaPhlAn markers `mpa-pkl`
 
 # Installation
-Currently, installation is possible with conda by following these 4 steps:
+Currently, installation is possible with conda by following these steps:
 
-1. Clone this repository, recreate the environment with conda and install SameStr with pip:
+Clone this repository, recreate the environment with conda and install SameStr with pip:
 ```
 git clone https://github.com/danielpodlesny/samestr.git
 cd samestr
 conda env create
 conda activate samestr
 pip install .
-```
-
-2. Get the directory to where pip installed SameStr during the previous command:
-```
-SAMESTR_INSTALL_DIR=$HOME/.conda/envs/samestr/lib/python2.7/site-packages/samestr
-# OR: pip list | grep 'samestr' 
-```
-
-3. Add the SameStr installation directory to your path:
-```
-export PATH=$PATH:${SAMESTR_INSTALL_DIR}/
-export PATH=$PATH:${SAMESTR_INSTALL_DIR}/convert/
-```
-
-4. Set the following file permissions:
-```
-chmod +x ${SAMESTR_INSTALL_DIR}/convert/*py
 ```
 
 ## Requirements
