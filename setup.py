@@ -11,5 +11,6 @@ setup(name='samestr',
       url='https://github.com/danielpodlesny/samestr/',
       license=open('LICENSE').read(),
       packages=find_packages(),
-      package_data={'': ['samestr','kpileup.pl', '*.R', 'LICENSE']},
+      package_data={'samestr': ['samestr', 'kpileup.pl', '*.R', 'LICENSE']},
+      scripts=['samestr/samestr', 'samestr/convert/kp2np.py', 'samestr/convert/dump_file.py', 'samestr/convert/filter_sam.py'],
       include_package_data=True)
