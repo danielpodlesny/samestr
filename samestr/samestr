@@ -4,7 +4,7 @@ __author__ = ('Daniel Podlesny (daniel.podlesny@uni-hohenheim.de)')
 __version__ = '2020.10'
 
 from sys import stderr, exit, argv
-from os.path import basename, dirname, abspath, isdir, join
+from os.path import basename, dirname, abspath, isdir, isfile, join
 from os import environ, mkdir
 from multiprocessing import Manager
 import argparse as ap
