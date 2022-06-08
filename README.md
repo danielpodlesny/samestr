@@ -5,7 +5,14 @@ SameStr's shared strains are specific to related but not unrelated sample pairs 
 
 SameStr is currently implemented in python 2.7 (should be updated to python 3.X in the future). While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
 
-Preprint: https://www.medrxiv.org/content/10.1101/2020.09.29.20203638v1
+## Citation
+Podlesny, D., Arze, C., Dörner, E., Verma, S., Dutta, S., Walter, J., & Fricke, W. F. (2022). Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation. Microbiome, 10(1), 53. https://doi.org/10.1186/s40168-022-01251-w
+
+## Other studies using SameStr
+Podlesny, D., Durdevic, M., Paramsothy, S., Kaakoush, N. O., Högenauer, C., Gorkiewicz, G., Walter, J., Fricke, W. F. (2021). Intraspecies strain exclusion, antibiotic pretreatment, and donor selection control microbiota engraftment after fecal transplantation. medRxiv 2021.08.18.21262200. https://doi.org/10.1101/2021.08.18.21262200
+
+Podlesny, D., & Fricke, W. F. (2021). Strain inheritance and neonatal gut microbiota development: A meta-analysis. International journal of medical microbiology : IJMM, 311(3), 151483. https://doi.org/10.1016/j.ijmm.2021.151483
+
 
 # Acknowledgements
 We wrapped tools or borrowed code from these repositories:
