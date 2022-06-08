@@ -215,9 +215,47 @@ samestr db \
 --output-dir marker_db/
 ```
 
-Note that SameStr is currently implemented in python 2.7 and MetaPhlAn3 has been 
-updated to python 3. Due to updates to python's pickle library MetaPhlAn3 `mpa_pkl` files have to
-be converted to the old pickle format before they can be used with SameStr:
+# Compatibility with MetaPhlAn ≥3
+With version 3+ MetaPhlAn has seen some major changes, including a rewrite to python 3 and a change in the output table format. SameStr, which relies on the MetaPhlAn markers and output tables, is currently implemented in python 2.7. With a few workarounds, SameStr can be run successfully using markers from both MetaPhlAn3 (mpa_v30_CHOCOPhlAn_201901) and MetaPhlAn4 (mpa_vJan21_CHOCOPhlAnSGB_202103, tbd).
+
+
+## align [deprecated]
+The align step is a convenience wrapper around MetaPhlAn2 and kneaddata. Due to python incompatibilities, the align step will be deprecated for future MetaPhlAn versions. 
+
+The user should run quality control measures and MetaPhlAn on their own. For example:
+
+Kneaddata:
+```
+kneaddata \
+    -i ${ID}.R1.fastq.gz \
+    -i ${ID}.R2.fastq.gz \
+    -db /path-to-db/Homo_sapiens_Bowtie2_v0.1/Homo_sapiens \
+    -p 2 \
+    -t 15 \
+    --max-memory ${RAM} \
+    --output-prefix ${ID} \
+    --cat-final-output \
+    --remove-intermediate-output \
+    -o QC/ 
+```
+
+MetaPhlAn:
+```
+metaphlan QC/${ID}.fastq.gz \
+    --bowtie2db /path-to-db/metaphlan3/ \
+    --input_type fastq \
+    --nproc 30 \
+    --legacy-output \
+    -t rel_ab \
+    --bowtie2out ${ID}.mp.bowtie2out \
+    --samout ${ID}.mp.sam.bz2 \
+    -o ${ID}.mp.profile.txt
+```
+For MetaPhlAn, it is important to include the `--legacy-output` and `--samout` flags, to generate the required outputs in compatible formats.
+
+
+## db
+Due to updates to python's pickle library MetaPhlAn3 `mpa_pkl` files have to be converted to the old pickle format before they can be used with SameStr:
 ```
 conda create --name py3.7 py=3.7
 conda activate py3.7
@@ -232,4 +270,5 @@ f = bz2.BZ2File(mpa_pkl_file.replace('.pkl', '.py2.pkl'), 'wb')
 pickle.dump(mpa_pkl, f, protocol = 0)
 ```
 
+The analysis can then be run starting from the `samestr convert` step.
  
