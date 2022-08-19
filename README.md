@@ -50,7 +50,7 @@ Clone this repository, recreate the environment with conda and install SameStr w
 ```
 git clone https://github.com/danielpodlesny/samestr.git
 cd samestr
-conda env create
+conda env create -f environment.yml
 conda activate samestr
 pip install .
 ```
