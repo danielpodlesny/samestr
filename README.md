@@ -33,7 +33,7 @@ Here, we present a pipeline to process data starting from raw single or paired-e
 **SameStr** must be used from the command line and encompasses multiple modules which can be called by using the following syntax: **`samestr <command>`**. Help for specific command-line usage is available by using the `--help` option with the `samestr` command (`samestr --help`) or any of its modules (`samestr convert --help`).
 
 [Module Description](#description)
-- [align](#align): preprocess and align `fastq` files to MetaPhlAn2 markers `sam` 
+- [align](#align) [deprecated]: preprocess and align `fastq` files to MetaPhlAn2 markers `sam`. This has been deprecated and is only available for use with MetaPhlAn version 2.
 - [convert](#convert): convert MetaPhlAn alignments `sam` to SNV profiles `npy`
 - [extract](#extract): extract SNV profiles `npy` from reference genomes `fasta`
 - [merge](#merge): merge SNV profiles `npy` + `npy` from multiple sources
@@ -65,10 +65,11 @@ SameStr has been tested with the following tool versions:
 - blastn (2.8.1+)
 
 # Description
-## align
-OPTIONAL. This command conveniently wraps `kneaddata`, `fastq-stats`, and `MetaPhlAn2`. Use it to first perform basic quality control measures such as read length trimming and host-genome mapping, gather qc and fastq statistics, and finally map cleaned sequence reads against MetaPhlAn2's species-specific marker sequences.
+## align [deprecated]
+Deprecated. See the notes on [compatibility with MetaPhlAn ≥3](#compatibility-with-metaphlan-3). 
+OPTIONAL for use with MetaPhlAn2. This command conveniently wraps `kneaddata`, `fastq-stats`, and `MetaPhlAn2`. Use it to first perform basic quality control measures such as read length trimming and host-genome mapping, gather qc and fastq statistics, and finally map cleaned sequence reads against MetaPhlAn2's species-specific marker sequences.
 
-Although it is not required to follow this exact pre-processing scheme for the **SameStr** analysis, we highly recommend quality processing of your raw sequencing data. When using alternative qc protocols, make sure to align sequences with MetaPhlAn2, further specifying the `-s` option to save the alignments in `sam` format. MetaPhlAn2 `sam` files are required for downstream processing.
+Although it is not required to follow this exact pre-processing scheme for the **SameStr** analysis, we highly recommend quality processing of your raw sequencing data. When using alternative qc protocols, make sure to align sequences with MetaPhlAn, further specifying the `-s` option to save the alignments in `sam` format. MetaPhlAn `sam` files are required for downstream processing.
 
 
 ### Usage example
@@ -92,15 +93,15 @@ samestr align \
 | `Kneaddata` | .log | Protocol of quality processing |
 | `Kneaddata` | .qc_stats.txt | Tabulated statistics of quality processing |
 | `fastq-stats` | .fastq_summary | Tabulated fastq read statistics |
-| `MetaPhlan2` | .bowtie2out | Intermediate bowtie alignment |
-| `MetaPhlan2` | .sam.bz2 | Marker sequence alignments |
-| `MetaPhlan2` | .profile.txt | Taxonomic assignment & relative abundance table
+| `MetaPhlan` | .bowtie2out | Intermediate bowtie alignment |
+| `MetaPhlan` | .sam.bz2 | Marker sequence alignments |
+| `MetaPhlan` | .profile.txt | Taxonomic assignment & relative abundance table
 
 ## samestr convert
-Convert MetaPhlAn2 marker alignments to nucleotide variant profiles. 
+Convert MetaPhlAn marker alignments to nucleotide variant profiles. 
 
 ### Usage example
-The input to **`samestr convert`** are MetaPhlAn2 marker alignments with the file extension `.sam` or `.sam.bz2`. For parallel processing, specify `--nprocs`. Note: This step requires a MetaPhlAn database regenerated with [samestr db](#db).
+The input to **`samestr convert`** are MetaPhlAn marker alignments of any MetaPhlAn version with the file extension `.sam` or `.sam.bz2`. For parallel processing, specify `--nprocs`. Note: This step requires a MetaPhlAn database regenerated with [samestr db](#db).
 ```
 samestr convert \
 --input-files out_align/metaphlan/*sam.bz2 \
@@ -119,7 +120,7 @@ Per Species:
 | T | 0 | 0 | 14 | 0 | .. |
 
 ## extract
-The module **`samestr extract`** obtains MetaPhlAn2 marker sequences from reference genomes by using BLASTN as described in the StrainPhlAn paper. 
+The module **`samestr extract`** obtains MetaPhlAn marker sequences from reference genomes by using BLASTN as described in the StrainPhlAn paper. 
 
 ### Usage example
 The input to **`samestr extract`** are genomic sequences in `fasta` format. For parallel processing, specify `--nprocs`. Note: This step requires a MetaPhlAn database regenerated with [samestr db](#db).
@@ -205,7 +206,7 @@ samestr stats \
 ```
 
 ## db
-The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn2 `mpa-pkl` and `all_markers.fasta`. Database files are required for further processing and can be generated for individual species or all MetaPhlAn2 species that are available.
+The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn `mpa-pkl` and `all_markers.fasta`. Database files are required for further processing and can be generated for individual species or all MetaPhlAn species that are available.
 
 ### Usage example
 ```
