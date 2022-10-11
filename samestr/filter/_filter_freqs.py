@@ -187,8 +187,7 @@ def filter_freqs(args):
 
     # 2.1 min-ncov
     if args['sample_var_min_n_vcov']:
-        remove_pos = coverage(
-            x)[:, :, np.newaxis] < args['sample_var_min_n_vcov']
+        remove_pos = x < args['sample_var_min_n_vcov']
         x[remove_pos] = 0
 
     # 2.2 min-fcov
