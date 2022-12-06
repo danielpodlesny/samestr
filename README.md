@@ -54,6 +54,7 @@ conda env create -f environment.yml
 conda activate samestr
 pip install .
 ```
+Next, set up the database with [db](#db).
 
 ## Requirements
 SameStr has been tested with the following tool versions:
@@ -97,7 +98,7 @@ samestr align \
 | `MetaPhlan` | .sam.bz2 | Marker sequence alignments |
 | `MetaPhlan` | .profile.txt | Taxonomic assignment & relative abundance table
 
-## samestr convert
+## convert
 Convert MetaPhlAn marker alignments to nucleotide variant profiles. 
 
 ### Usage example
@@ -206,7 +207,7 @@ samestr stats \
 ```
 
 ## db
-The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn `mpa-pkl` and `all_markers.fasta`. Database files are required for further processing and can be generated for individual species or all MetaPhlAn species that are available.
+The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn `mpa-pkl` and `all_markers.fasta`. Database files are required for further processing and can be generated for individual species or all MetaPhlAn species that are available. Please not the adjustments that are currently needed for [compatibility with MetaPhlAn 3 and 4](#compatibility-with-metaphlan-3).
 
 ### Usage example
 ```
@@ -275,5 +276,5 @@ After conversion of the pickle file, you can then use either of:
 - MetaPhlAn 3: `mpa_v30_CHOCOPhlAn_201901.fna` and `mpa_v30_CHOCOPhlAn_201901.py2.pkl`
 - MetaPhlAn 4: `mpa_vJan21_CHOCOPhlAnSGB_202103.fna` and `mpa_vJan21_CHOCOPhlAnSGB_202103.py2.pkl`
 
-as input for [samestr db](#db). The analysis can then be run starting from the `samestr convert` step.
+as input for [samestr db](#db). The analysis can then be continued from [samestr convert](#convert).
  
