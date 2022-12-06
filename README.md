@@ -271,5 +271,9 @@ f = bz2.BZ2File(mpa_pkl_file.replace('.pkl', '.py2.pkl'), 'wb')
 pickle.dump(mpa_pkl, f, protocol = 0)
 ```
 
-The analysis can then be run starting from the `samestr convert` step.
+After conversion of the pickle file, you can then use either of:
+- MetaPhlAn 3: `mpa_v30_CHOCOPhlAn_201901.fna` and `mpa_v30_CHOCOPhlAn_201901.py2.pkl`
+- MetaPhlAn 4: `mpa_vJan21_CHOCOPhlAnSGB_202103.fna` and `mpa_vJan21_CHOCOPhlAnSGB_202103.py2.pkl`
+
+as input for [samestr db](#db). The analysis can then be run starting from the `samestr convert` step.
  
