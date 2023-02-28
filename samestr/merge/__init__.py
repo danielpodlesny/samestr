@@ -1,1 +1,1 @@
-from ._freq2freqs import freq2freqs
+from .freq2freqs import freq2freqs

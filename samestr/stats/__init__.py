@@ -1,1 +1,1 @@
-from ._alignment_stats import aln2stats
+from .alignment_stats import aln2stats

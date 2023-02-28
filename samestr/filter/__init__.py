@@ -1,2 +1,2 @@
-from _filter_freqs import filter_freqs
-from _consensus import consensus
+from .filter_freqs import filter_freqs
+from .consensus import consensus

@@ -22,7 +22,7 @@ class TaxClade:
         terms = []
         if not self.children:
             return [self]
-        for c in self.children.values():
+        for c in list(self.children.values()):
             terms += c.get_terminals()
         return terms
 
@@ -40,7 +40,7 @@ class TaxTree:
         self.root = TaxClade("root")
         self.all_clades = {}
         clades_txt = ((l.strip().split('|')[:-1])
-                      for l, n in mpa_pkl['taxonomy'].items())
+                      for l, n in list(mpa_pkl['taxonomy'].items()))
         for clade in clades_txt:
             father = self.root
             for clade_lev in clade:

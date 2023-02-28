@@ -1,4 +1,4 @@
-from os.path import isfile, basename, join, dirname, abspath, exists
+from os.path import dirname, abspath, exists
 from samestr.utils import ooSubprocess
 from samestr.utils.utilities import list_str_all_endswith
 
@@ -14,7 +14,6 @@ def set_output_structure(args):
 
     # dest
     out_dir = abspath(args[0]['output_dir']) + '/'
-    # in_dir = abspath(args[0]['input_dir']) + '/'
     cmd = args[0]['command']
 
     # dir names
@@ -24,15 +23,15 @@ def set_output_structure(args):
     bam = 'bam/'
     freq = 'samestr/'
 
-    ooSubprocess.mkdir(out_dir)
+    ooSubprocess.makedirs(out_dir)
 
     # dir and file paths
     if cmd == 'align':
         kneaddata_dir, \
-        fastqstats_dir, \
-        metaphlan_dir, \
-        bam_dir, \
-        freq_dir = \
+            fastqstats_dir, \
+            metaphlan_dir, \
+            bam_dir, \
+            freq_dir = \
             out_dir + kneaddata, \
             out_dir + fastqstats, \
             out_dir + metaphlan, \
@@ -41,7 +40,7 @@ def set_output_structure(args):
 
         # make base dirs
         _ = [
-            ooSubprocess.mkdir(d)
+            ooSubprocess.makedirs(d)
             for d in [kneaddata_dir, fastqstats_dir, metaphlan_dir]
         ]
 
@@ -64,12 +63,12 @@ def set_output_structure(args):
     elif cmd == 'convert':
 
         bam_dir, \
-        freq_dir = \
+            freq_dir = \
             out_dir + bam, \
             out_dir + freq
 
         # make base dirs
-        _ = [ooSubprocess.mkdir(d) for d in [bam_dir, freq_dir]]
+        _ = [ooSubprocess.makedirs(d) for d in [bam_dir, freq_dir]]
 
         for arg in args:
             n = arg['bname']
@@ -78,17 +77,17 @@ def set_output_structure(args):
             arg['sam'] = arg['input_dir'] + n + '.sam.bz2'
             arg['bowtie2out'] = arg['input_dir'] + n + '.bowtie2out'
 
-            ## metaphlan profiles
+            # metaphlan profiles
             if not arg['mp_profiles_dir']:
                 arg['mp_profiles_dir'] = arg['input_dir']
             else:
                 arg['mp_profiles_dir'] = abspath(arg['mp_profiles_dir']) + '/'
 
-            ### file name
+            # file name
             arg['mp_profile'] = arg['mp_profiles_dir'] + n + arg[
                 'mp_profiles_extension']
 
-            ### exists
+            # exists
             if not exists(arg['mp_profile']):
                 LOG.error('MetaPhlAn file not found: %s' % arg['mp_profile'])
                 exit(1)
@@ -104,7 +103,7 @@ def set_output_structure(args):
             arg['np'] = _freq_sample_dir
 
             # make sample dirs
-            ooSubprocess.mkdir(_freq_sample_dir)
+            ooSubprocess.makedirs(_freq_sample_dir)
 
     return args
 

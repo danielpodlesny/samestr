@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def consensus(x):
     """
     Select dominant variants from each alignment.

@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-# Author: Duy Tin Truong (duytin.truong@unitn.it)
-#		at CIBIO, University of Trento, Italy
-
+#!/usr/bin/env python3.9
 import os
 import sys
 
@@ -10,7 +7,7 @@ def which(program):
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    fpath, fname = os.path.split(program)
+    fpath, _ = os.path.split(program)
     if fpath:
         if is_exe(program):
             return program
@@ -19,7 +16,6 @@ def which(program):
             path = path.strip('"')
             exe_file = os.path.join(path, program)
 
-            # print(exe_file)
             if is_exe(exe_file):
                 return exe_file
 

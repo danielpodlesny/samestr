@@ -1,4 +1,4 @@
-from os.path import isfile, abspath, dirname
+from os.path import isfile
 
 import logging
 

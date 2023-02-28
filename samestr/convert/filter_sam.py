@@ -1,9 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.9
 import re, sys
-from string import maketrans
 
 # Filter SAM file by percent identity and length
-# usage: perl 1.filter_sam.pl [sam_file] [percent_id] [min_length]
 
 def decode_cigar(cigar):
     res = []
@@ -12,7 +10,7 @@ def decode_cigar(cigar):
     hend = 0
     tlen = 0
     tabs = re.split('([a-zA-Z])', cigar)[:-1]
-    for i in range(len(tabs)/2):
+    for i in range(len(tabs)//2):
         ci = int(tabs[i*2])
         li = tabs[i*2 + 1]
         if li == 'H':
@@ -28,7 +26,7 @@ def decode_cigar(cigar):
 
 
 def reverse_complement(seq):
-    return seq.translate(maketrans('ACGTacgtNn', 'TGCAtgcaNn'))[::-1]
+    return seq.translate(str.maketrans('ACGTacgtNn', 'TGCAtgcaNn'))[::-1]
 
 
 # read command line arguments and/or stdin
@@ -54,7 +52,7 @@ for line in fhandle:
 
     # print header
     if line.startswith('@'):
-        print line.rstrip()
+        print(line.rstrip())
         continue
 
     # get fields
@@ -111,4 +109,4 @@ for line in fhandle:
         quit('ERROR 3: SAM file format')
 
     # finally, print quality filtered line
-    print '\t'.join(sline)
+    print('\t'.join(sline))

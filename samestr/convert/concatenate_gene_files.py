@@ -2,7 +2,7 @@ from os.path import isfile
 import logging
 
 from samestr.utils import ooSubprocess
-from samestr.utils.utilities import get_metaphlan_species
+from samestr.summarize.read_metaphlan_data import get_metaphlan_species_profile_dict
 
 LOG = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ def concatenate_gene_files(arg):
     oosp = ooSubprocess.ooSubprocess()
 
     LOG.debug('Gathering: %s' % arg['mp_profile'])
-    mp_species = get_metaphlan_species(arg['mp_profile'])
+    mp_species = get_metaphlan_species_profile_dict(arg['mp_profile'])
     if not mp_species:
         LOG.error('No species classified: %s' % arg['bname'])
         return False
@@ -24,8 +24,8 @@ def concatenate_gene_files(arg):
     gene_files = []
     contig_maps = []
 
-    for species, _ in sorted(mp_species.iteritems(),
-                             key=lambda (k, v): (v, k),
+    for species, _ in sorted(iter(mp_species.items()),
+                             key=lambda k_v: (k_v[1], k_v[0]),
                              reverse=True):
         gene_fname = '%s/%s.gene_file.txt' % (arg['marker_dir'], species)
         map_fname = '%s/%s.contig_map.txt' % (arg['marker_dir'], species)

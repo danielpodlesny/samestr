@@ -1,9 +1,9 @@
-from __future__ import division
+
 from os.path import basename, join, exists
 import logging
 import numpy as np
 
-from Bio import SeqIO, Seq, SeqRecord, AlignIO
+from Bio import Seq, SeqRecord, AlignIO
 from Bio.Align import MultipleSeqAlignment
 
 from samestr.filter import consensus
@@ -32,7 +32,6 @@ def compare(args):
 
     # load freqs
     x = np.load(args['input_file'], allow_pickle=True)
-    total_species_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
 
     # conversion arrays
@@ -45,7 +44,6 @@ def compare(args):
         [0, 0, 1, 0],  # G
         [0, 0, 0, 1]  # T
     ]
-    null_array = np.array([0, 0, 0, 0])
 
     # rename samples to samples.dom
     if args['dominant_variants'] or args['dominant_variants_added']:
@@ -71,7 +69,6 @@ def compare(args):
     # generate matrix: minimum variant similarity, overlap, fraction mvs
     for i in range(x.shape[0]):
         sample = samples[i]
-        # LOG.debug('Processing [%s]: %s' % (i, sample))
         shortest_distance = (((x[i, :, :] > 0) *
                               (x > 0)).sum(axis=2) > 0).sum(axis=1)
         shared_overlap = ((x[i, :, :].sum(axis=1) > 0) *
@@ -105,7 +102,6 @@ def compare(args):
 
         if args['dominant_variants'] or args['dominant_variants_added']:
             samples = dom_samples
-
         else:
             d = consensus(x)
 

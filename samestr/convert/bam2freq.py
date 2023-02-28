@@ -1,4 +1,4 @@
-from os.path import isfile, dirname, realpath, join
+from os.path import isfile
 import logging
 
 from glob import glob
@@ -22,7 +22,7 @@ def bam2freq(arg):
     if not isfile(arg['kp']):
         LOG.debug('Piling: %s' % arg['bam'])
         oosp.ex(
-            join(dirname(realpath(__file__)), 'kpileup.pl'),
+            'kpileup.py',
             args=[
                 arg['bname'],
                 arg['bam'],

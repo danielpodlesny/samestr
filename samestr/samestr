@@ -1,25 +1,20 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3.9
+"""SameStr: Shared Strains Identification in Metagenomic Samples."""
+__author__ = 'Daniel Podlesny (daniel.podlesny@embl.de)'
+__version__ = '1.2023.02-1'
 
-__author__ = ('Daniel Podlesny (daniel.podlesny@uni-hohenheim.de)')
-__version__ = '2020.10'
-
-from sys import stderr, exit, argv
-from os.path import basename, dirname, abspath, isdir, isfile, join
-from os import environ, mkdir
-from multiprocessing import Manager
+from sys import stderr, argv
+from os.path import basename, dirname, realpath, isdir, isfile
+from os import environ, makedirs
 import argparse as ap
 import logging
 import logging.config
-import bz2
-import cPickle as pickle
-from Bio import SeqIO, Seq, SeqRecord
 
 from samestr.utils.utilities import list_group_by_basename
 from samestr.utils.ooSubprocess import serialize, parallelize_async
-from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, set_output_structure
+from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
+    set_output_structure
 
-from samestr.align import run_kneaddata, run_metaphlan, run_fastq_stats
-from samestr.align.metaphlan_ignore_markers import ignore_markers as mp_ignore_markers
 from samestr.convert import sam2bam, concatenate_gene_files, bam2freq
 from samestr.extract import ref2freq
 from samestr.filter import filter_freqs
@@ -27,155 +22,52 @@ from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
 from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import TaxClade, TaxTree
+from samestr.db import mp2db
 
-SAMESTR_DIR = dirname(__file__)
+SAMESTR_DIR = dirname(realpath(__file__))
 CONVERT_DIR = SAMESTR_DIR + '/convert/'
 UTILS_DIR = SAMESTR_DIR + '/utils/'
 environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    stream=stderr,
-    disable_existing_loggers=False,
-    format=
-    '%(asctime)s | %(levelname)s | %(name)s | %(funcName)s | %(lineno)d | %(message)s'
-)
-LOG = logging.getLogger(__name__)
-
-
 def read_params():
-    parser = ap.ArgumentParser(prog='samestr',
-                               description='Welcome to SameStr! SameStr identifies shared strains between pairs '
-                                           'of metagenomic samples based on the similarity of their ' 
-                                           'Single Nucleotide Variant (SNV) profiles.',
-                               formatter_class=ap.ArgumentDefaultsHelpFormatter
-                               )
-    # show help by default
-    if len(argv) == 1:
+    """Read command line arguments and return them as a dictionary."""
+    parser = ap.ArgumentParser(
+        prog='samestr',
+        description='Welcome to SameStr! SameStr identifies shared strains'
+                    ' between pairs of metagenomic samples '
+                    'based on the similarity of their Single Nucleotide Variant (SNV) profiles.',
+        formatter_class=ap.ArgumentDefaultsHelpFormatter
+    )
+
+    # Show help by default if no arguments are passed
+    if len(argv) < 2:
         parser.print_help(stderr)
         exit(1)
 
-    # retrieve version
-    parser.add_argument('--version',
-                        action='version',
-                        version='samestr-%s' % __version__)
-
-    # SUBPARSERS
-    subparser = parser.add_subparsers(title='commands', dest='command')
-    subparser.required = True  # http://bugs.python.org/issue9253#msg186387
-
-    # ALIGN
-    align_parser = subparser.add_parser(
-        'align',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Process single or paired-end fastq files with Kneaddata and MetaPhlAn.')
-
-    ## general
-    align_general = align_parser.add_argument_group('General arguments')
-    align_general.add_argument(
-        '--nprocs',
-        required=False,
-        metavar='INT',
-        default=1,
-        type=int,
-        help='Number of parallel processes to use.')
-
-    ## input
-    align_input = align_parser.add_argument_group('Input arguments')
-    align_input.add_argument(
-        '--input-files',
-        nargs='+',
-        metavar='FASTQ|FASTQ.GZ',
-        required=True,
-        default=[],
-        type=str,
-        help='Path to input files in fastq format.')
-    align_input.add_argument(
-        '--input-sequence-type',
-        required=False,
-        default='paired',
-        type=str,
-        choices=['single', 'paired'],
-        help='Type of input sequence files. '
-             'Attempts to find file pairs (e.g. R1.fastq, R2.fastq) '  
-             'if paired is selected.')
-
-    ## output
-    align_output = align_parser.add_argument_group('Output arguments')
-    align_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_align/',
-        type=str,
-        help='Path to output directory.')
-
-    ## kneaddata
-    align_kneaddata = align_parser.add_argument_group('Kneaddata arguments')
-    align_kneaddata.add_argument(
-        '--kneaddata-exe',
-        required=False,
-        metavar='EXE',
-        default='/usr/bin/kneaddata',
-        type=str,
-        help='Path to Kneaddata executable.')
-    align_kneaddata.add_argument(
-        '--max-ram',
-        required=False,
-        metavar='BYTE',
-        default='40G',
-        type=str,
-        help='Maximum amount of RAM to use in Kneaddata.')
-    align_kneaddata.add_argument(
-        '--host-bowtie2db',
-        required=False,
-        metavar='BOWTIE2DB',
-        default='Homo_sapiens_Bowtie2_v0.1/Homo_sapiens',
-        type=str,
-        help='Bowtie2 database for removal of genomic host DNA.'
-    )
-    align_kneaddata.add_argument(
-        '--keep-intermediate-fastq',
-        required=False,
-        default=False,
-        action='store_true',
-        help='Keep intermediate (e.g. contaminated, orphan) fastq files'
+    # Retrieve version of the program
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'samestr-{__version__}'
     )
 
-    ## fastq-stats
-    align_fastqstats = align_parser.add_argument_group('Fastq-stats arguments')
-    align_fastqstats.add_argument(
-        '--fastq-stats-exe',
+    # Set communication verbosity
+    parser.add_argument(
+        '--verbosity',
         required=False,
-        metavar='EXE',
-        default='/usr/bin/fastq-stats',
+        default='INFO',
+        metavar='STR',
+        options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         type=str,
-        help='Path to fastq-stats executable.')
+        help='Set the verbosity of the program. '
+             'Options: DEBUG, INFO, WARNING, ERROR, CRITICAL.')
 
-    ## metaphlan2
-    align_metaphlan2 = align_parser.add_argument_group('MetaPhlAn2 arguments')
-    align_metaphlan2.add_argument(
-        '--metaphlan2-exe',
-        required=False,
-        metavar='EXE',
-        default='/opt/metaphlan2/metaphlan2.py',
-        type=str,
-        help='Path to Metaphlan2 executable.')
-    align_metaphlan2.add_argument(
-        '--mpa',
-        required=False,
-        metavar='MPA',
-        default='/opt/metaphlan2/db_v20/mpa_v20_m200',
-        type=str,
-        help='Bowtie2db mpa.')
-    align_metaphlan2.add_argument(
-        '--mpa-pkl',
-        required=False,
-        metavar='MPA_PKL',
-        default='/opt/metaphlan2/db_v20/mpa_v20_m200.pkl',
-        type=str,
-        help='Bowtie2db mpa.pkl file.')
+    # add subparsers for different commands
+    subparser = parser.add_subparsers(
+        title='commands',
+        dest='command',
+        help='Use one of the following commands for different tasks.',)
+    # subparser.required = True  # http://bugs.python.org/issue9253#msg186387
 
     # CONVERT
     convert_parser = subparser.add_parser(
@@ -183,7 +75,7 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Convert sequence alignments to SNV Profiles.')
 
-    ## general
+    # general
     convert_general = convert_parser.add_argument_group('General arguments')
     convert_general.add_argument(
         '--nprocs',
@@ -193,7 +85,7 @@ def read_params():
         type=int,
         help='The number of processing units to use.')
 
-    ## input
+    # input
     convert_input = convert_parser.add_argument_group('Input arguments')
     convert_input.add_argument(
         '--input-files',
@@ -202,9 +94,9 @@ def read_params():
         nargs='+',
         default=[],
         type=str,
-        help='Path to input MetaPhlAn2 marker alignments.')
+        help='Path to input MetaPhlAn marker alignments.')
 
-    ## output
+    # output
     convert_output = convert_parser.add_argument_group('Output arguments')
     convert_output.add_argument(
         '--output-dir',
@@ -214,7 +106,7 @@ def read_params():
         type=str,
         help='Path to output directory.')
 
-    ## mapping
+    # mapping
     convert_alignment = convert_parser.add_argument_group(
         'Alignment arguments')
     convert_alignment.add_argument(
@@ -236,8 +128,7 @@ def read_params():
         required=False,
         metavar='DIR',
         type=str,
-        help=
-        'Path to directory with MetaPhlAn profiles (default extension: .profile.txt). '
+        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt). '
         'When not specified, will look for metaphlan profiles in `input-files` directory.'
     )
     convert_alignment.add_argument(
@@ -274,7 +165,7 @@ def read_params():
         '--min-vcov',
         required=False,
         metavar='INT',
-        default=1,
+        default=3,
         type=int,
         help='Minimum vertical coverage.')
 
@@ -284,7 +175,7 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Extract SNV Profiles from Reference Genomes.')
 
-    ## general
+    # general
     extract_general = extract_parser.add_argument_group('General arguments')
     extract_general.add_argument(
         '--nprocs',
@@ -301,7 +192,7 @@ def read_params():
         type=str,
         help='Path to temporary directory')
 
-    ## input
+    # input
     extract_input = extract_parser.add_argument_group('Input arguments')
     extract_input.add_argument(
         '--input-files',
@@ -315,10 +206,9 @@ def read_params():
         '--species',
         required=True,
         metavar='CLADE',
-        # nargs='+',
         type=str,
         help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn2 taxonomy '
+             'Names must correspond to MetaPhlAn taxonomy '
              '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
     extract_input.add_argument(
         '--marker-dir',
@@ -328,7 +218,7 @@ def read_params():
         type=str,
         help='Path to MetaPhlAn species marker database.')
 
-    ## output
+    # output
     extract_output = extract_parser.add_argument_group('Output arguments')
     extract_output.add_argument(
         '--output-dir',
@@ -349,7 +239,7 @@ def read_params():
         action='store_true',
         help='Keep alignment files for individual markers.')
 
-    ## alignment
+    # alignment
     extract_alignment = extract_parser.add_argument_group(
         'Alignment arguments')
     extract_alignment.add_argument(
@@ -373,7 +263,7 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Merge SNV Profiles from multiple sources.')
 
-    ## general
+    # general
     merge_general = merge_parser.add_argument_group('General arguments')
     merge_general.add_argument(
         '--nprocs',
@@ -383,7 +273,7 @@ def read_params():
         type=int,
         help='The number of processing units to use.')
 
-    ## input
+    # input
     merge_input = merge_parser.add_argument_group('Input arguments')
     merge_input.add_argument(
         '--input-files',
@@ -394,17 +284,17 @@ def read_params():
         type=str,
         help='Path to input SNV profiles.')
 
-    ## output
+    # output
     merge_output = merge_parser.add_argument_group('Output arguments')
     merge_output.add_argument(
         '--output-dir',
-       required=False,
-       metavar='DIR',
-       default='out_merge/',
-       type=str,
-       help='Path to output directory.')
+        required=False,
+        metavar='DIR',
+        default='out_merge/',
+        type=str,
+        help='Path to output directory.')
 
-    ## species
+    # species
     merge_species = merge_parser.add_argument_group('Species arguments')
     merge_species.add_argument(
         '--species',
@@ -413,7 +303,7 @@ def read_params():
         nargs='+',
         type=str,
         help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn2 taxonomy '
+             'Names must correspond to MetaPhlAn taxonomy '
              '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
 
     # FILTER
@@ -422,7 +312,7 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Filter SNV Profiles.')
 
-    ## general
+    # general
     filter_general = filter_parser.add_argument_group('General arguments')
     filter_general.add_argument(
         '--nprocs',
@@ -432,7 +322,7 @@ def read_params():
         type=int,
         help='The number of processing units to use.')
 
-    ## input
+    # input
     filter_input = filter_parser.add_argument_group('Input arguments')
     filter_input.add_argument(
         '--input-files',
@@ -451,7 +341,7 @@ def read_params():
         type=str,
         help='Path to input name files.')
 
-    ## output
+    # output
     filter_output = filter_parser.add_argument_group('Output arguments')
     filter_output.add_argument(
         '--output-dir',
@@ -474,13 +364,12 @@ def read_params():
         '--delete-pos',
         required=False,
         action='store_true',
-        help=
-        'Delete masked marker and global positions from array instead of np.nan'
+        help='Delete masked marker and global positions from array instead of np.nan'
     )
 
-    ## filter settings
+    # filter settings
 
-    ### species
+    # species
     filter_species = filter_parser.add_argument_group(
         'Species arguments')
     filter_species.add_argument(
@@ -490,7 +379,7 @@ def read_params():
         nargs='+',
         type=str,
         help='Species to process from input files. '
-              'Names must correspond to MetaPhlAn2 taxonomy '
+              'Names must correspond to MetaPhlAn taxonomy '
               '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
     filter_species.add_argument(
         '--species-min-samples',
@@ -498,10 +387,9 @@ def read_params():
         metavar='INT',
         default=2,
         type=int,
-        help=
-        'Skipping species with fewer than `species-min-samples` samples.')
+        help='Skipping species with fewer than `species-min-samples` samples.')
 
-    ### markers
+    # markers
     filter_markers = filter_parser.add_argument_group(
         'Species Marker arguments')
     filter_markers.add_argument(
@@ -529,29 +417,29 @@ def read_params():
         '--marker-trunc-len',
         required=False,
         metavar='INT',
-        default=20,
+        default=50,
         type=int,
         help='Number of Nucleotides to be cut from each two sides of a marker.')
 
-    ### sample variants
+    # sample variants
     filter_sample_pos = filter_parser.add_argument_group(
         'Sample Variant Filtering arguments')
     filter_sample_pos.add_argument(
         '--sample-var-min-n-vcov',
         required=False,
         metavar='INT',
+        default=2,
         type=int,
-        help=
-        'Remove variants with coverage below `sample-var-min-n-vcov` nucleotides.')
+        help='Remove variants with coverage below `sample-var-min-n-vcov` nucleotides.')
     filter_sample_pos.add_argument(
         '--sample-var-min-f-vcov',
         required=False,
         metavar='FLOAT',
-        default=0.1,
+        default=0.05,
         type=float,
         help='Remove variants with coverage below `sample-var-min-f-vcov` percent.')
 
-    ### sample positions
+    # sample positions
     filter_sample_pos = filter_parser.add_argument_group(
         'Sample Position Filtering arguments')
     filter_sample_pos.add_argument(
@@ -560,20 +448,18 @@ def read_params():
         metavar='INT',
         default=1,
         type=int,
-        help=
-        'Remove positions with coverage below `sample-pos-min-n-vcov` nucleotides.'
+        help='Remove positions with coverage below `sample-pos-min-n-vcov` nucleotides.'
     )
     filter_sample_pos.add_argument(
         '--sample-pos-min-sd-vcov',
         required=False,
         metavar='FLOAT',
-        default=5.0,
+        default=3.0,
         type=float,
-        help=
-        'Remove positions with coverage +-`sample-pos-min-sd-vcov` from the mean.'
+        help='Remove positions with coverage +-`sample-pos-min-sd-vcov` from the mean.'
     )
 
-    ### samples
+    # samples
     filter_samples = filter_parser.add_argument_group(
         'Sample Filtering arguments')
     filter_samples.add_argument(
@@ -590,8 +476,7 @@ def read_params():
         metavar='INT',
         type=int,
         default=5000,
-        help=
-        'Remove samples with horizontal coverage below `samples-min-n-hcov`.')
+        help='Remove samples with horizontal coverage below `samples-min-n-hcov`.')
     filter_samples.add_argument(
         '--samples-min-f-hcov',
         required=False,
@@ -614,8 +499,7 @@ def read_params():
         metavar='INT',
         default=2,
         type=int,
-        help=
-        'Remove positions covered by fewer than `global-pos-min-n-vcov` number of samples. '
+        help='Remove positions covered by fewer than `global-pos-min-n-vcov` number of samples. '
         'Overrides `global-pos-min-f-vcov`.')
     filter_global_pos.add_argument(
         '--global-pos-min-f-vcov',
@@ -630,7 +514,7 @@ def read_params():
         'compare',
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Calculate pairwise sequence similarity.')
-    ## general
+    # general
     compare_general = compare_parser.add_argument_group('General arguments')
     compare_general.add_argument(
         '--nprocs',
@@ -640,7 +524,7 @@ def read_params():
         type=int,
         help='The number of processing units to use.')
 
-    ## input
+    # input
     compare_input = compare_parser.add_argument_group('Input arguments')
     compare_input.add_argument(
         '--input-files',
@@ -659,7 +543,7 @@ def read_params():
         type=str,
         help='Path to input name files.')
 
-    ## output
+    # output
     compare_output = compare_parser.add_argument_group('Output arguments')
     compare_output.add_argument(
         '--output-dir',
@@ -691,23 +575,22 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Summarize Taxonomic Co-Occurrence.')
 
-    ## input
+    # input
     summarize_input = summarize_parser.add_argument_group('Input arguments')
     summarize_input.add_argument(
         '--input-dir',
         required=True,
         metavar='DIR',
         type=str,
-        help='Path to `samestr compare` output directory. '
-             'Must contain pairwise comparison of species alignment files (.fraction.txt, .overlap.txt)'
+        help='Path to `samestr compare` output directory. Must contain '
+             'pairwise comparison of species alignment files (.fraction.txt, .overlap.txt)'
     )
     summarize_input.add_argument(
         '--mp-profiles-dir',
         required=True,
         metavar='DIR',
         type=str,
-        help=
-        'Path to directory with MetaPhlAn profiles (default extension: .profile.txt).'
+        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt).'
     )
     summarize_input.add_argument(
         '--mp-profiles-extension',
@@ -715,11 +598,10 @@ def read_params():
         metavar='EXT',
         default='.profile.txt',
         type=str,
-        help=
-        'File extension of MetaPhlAn profiles.'
+        help='File extension of MetaPhlAn profiles.'
     )
 
-    ## output
+    # output
     summarize_output = summarize_parser.add_argument_group('Output arguments')
     summarize_output.add_argument(
         '--output-dir',
@@ -738,8 +620,7 @@ def read_params():
         metavar='INT',
         default=5000,
         type=int,
-        help=
-        'Minimum number of overlapping positions which have to be covered in both '
+        help='Minimum number of overlapping positions which have to be covered in both '
         'alignments in order to evaluate alignment similarity.'
     )
     summarize_thresholds.add_argument(
@@ -748,8 +629,7 @@ def read_params():
         metavar='FLOAT',
         default=0.999,
         type=float,
-        help=
-        'Minimum pairwise alignment similarity to call shared strains.'
+        help='Minimum pairwise alignment similarity to call shared strains.'
     )
 
     # STATS
@@ -757,7 +637,7 @@ def read_params():
         'stats',
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Report alignment statistics.')
-    ## general
+    # general
     stats_general = stats_parser.add_argument_group('General arguments')
     stats_general.add_argument(
         '--nprocs',
@@ -767,7 +647,7 @@ def read_params():
         type=int,
         help='The number of processing units to use.')
 
-    ## input
+    # input
     stats_input = stats_parser.add_argument_group('Input arguments')
     stats_input.add_argument(
         '--input-files',
@@ -786,7 +666,7 @@ def read_params():
         type=str,
         help='Path to input name files.')
 
-    ## output
+    # output
     stats_output = stats_parser.add_argument_group('Output arguments')
     stats_output.add_argument(
         '--output-dir',
@@ -799,8 +679,7 @@ def read_params():
         '--dominant-variants',
         required=False,
         action='store_true',
-        help=
-        'Report statistics only for dominant variants as obtained from consensus call.')
+        help='Report statistics only for dominant variants as obtained from consensus call.')
 
     # DB
     db_parser = subparser.add_parser(
@@ -808,21 +687,19 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Make database from MetaPhlAn markers.')
 
-    ## input
+    # input
     db_input = db_parser.add_argument_group('Input arguments')
     db_input.add_argument(
         '--mpa-markers',
         required=True,
         metavar='FASTA',
         type=str,
-        help=
-        'MetaPhlAn2 markers file extracted with bowtie2-inspect (all_markers.fasta)'
+        help='MetaPhlAn markers file (e.g. all_markers.fasta, mpa_vJan21_CHOCOPhlAnSGB_202103.fna)'
     )
     db_input.add_argument(
         '--mpa-pkl',
         required=False,
         metavar='MPA_PKL',
-        default='/opt/metaphlan2/db_v20/mpa_v20_m200.pkl',
         type=str,
         help='Bowtie2db mpa.pkl file.')
     db_input.add_argument(
@@ -832,10 +709,10 @@ def read_params():
         nargs='+',
         type=str,
         help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn2 taxonomy '
+             'Names must correspond to MetaPhlAn taxonomy '
              '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
 
-    ## output
+    # output
     db_output = db_parser.add_argument_group('Output arguments')
     db_output.add_argument(
         '--output-dir',
@@ -849,10 +726,10 @@ def read_params():
 
 
 def samestr(input_args):
+    """Main function for SAMESTR."""
     accepted_extensions_dict = {
-        'align': ['.fastq', '.fastq.gz'],
         'convert': ['.sam', '.sam.bz2'],
-        'db': ['.fasta', '.fa', '.fna'],
+        'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
         'extract': ['.fasta', '.fa', '.fna', '.fasta.gz', '.fa.gz', '.fna.gz'],
         'merge': ['.npy', '.npy'],
         'filter': ['.npy'],
@@ -872,35 +749,11 @@ def samestr(input_args):
 
         # Count input files
         file_count = len(input_args['input_files'])
-        LOG.debug('Number of input files: %s' % file_count)
+        LOG.debug('Number of input files: %s', file_count)
 
     # check make output dir
     if not isdir(input_args['output_dir']):
-        mkdir(input_args['output_dir'])
-
-    if input_args['command'] == 'align':
-        # For paired-end data: check even file count
-        if input_args['input_sequence_type'] == 'paired':
-            if not (file_count % 2 == 0 and file_count > 0):
-                LOG.error('Uneven number of paired-end files. Check input.')
-                exit(1)
-
-        # Group args of fastq pairs
-        fastq_endings = ['.1', '_1', '.2', '_2', '.R1', '_R1', '.R2', '_R2']
-        endings = [e + input_args['input_extension'] for e in fastq_endings]
-        input_args['input_files'] = list_group_by_basename(
-            input_args['input_files'], cut_name_endings=endings)
-
-        print(input_args)
-
-        # Spread args over files/file-pairs, Set output names and check/make their dir
-        args = spread_args_by_input_files(input_args)
-        args = set_output_structure(args)
-
-        # Run: Kneaddata, Fastq-Stats, MetaPhlAn2
-        args = serialize(run_kneaddata, args)
-        args = parallelize_async(run_fastq_stats, args, input_args['nprocs'])
-        args = serialize(run_metaphlan, args)
+        makedirs(input_args['output_dir'])
 
     elif input_args['command'] == 'convert':
         input_args['input_files'] = list_group_by_basename(
@@ -909,141 +762,19 @@ def samestr(input_args):
 
         # Spread args over files/file-pairs, Set output names and check/make their dir
         input_args['input_sequence_type'] = 'single'
-        args = spread_args_by_input_files(input_args)
-        args = set_output_structure(args)
+        cmd_args = spread_args_by_input_files(input_args)
+        cmd_args = set_output_structure(cmd_args)
 
         # Run: convert
-        args = parallelize_async(sam2bam, args, input_args['nprocs'])
-        args = parallelize_async(concatenate_gene_files, args,
+        cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])
+        cmd_args = parallelize_async(concatenate_gene_files, cmd_args,
                                  input_args['nprocs'])
-        args = parallelize_async(bam2freq, args, input_args['nprocs'])
+        cmd_args = parallelize_async(bam2freq, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] == 'db':
 
-        # read mpa files into dict
-        mpa_pkl = pickle.load(bz2.BZ2File(input_args['mpa_pkl']))
-        mpa_markers = SeqIO.to_dict(
-            SeqIO.parse(input_args['mpa_markers'], 'fasta'))
-        ignore_markers = mp_ignore_markers()
-
-        # set species markers
-        all_species = set()
-        all_markers = {}
-        n_markers = 0
-
-        # first, generate taxonomy (mp2)
-        tree = TaxTree(mpa_pkl)
-
-        for marker in mpa_pkl['markers']:
-
-            # skip markers ignored by metaphlan
-            if marker in ignore_markers:
-                continue
-
-            # retrieve species names using last clade that is not strain (sp. or higher)
-            lineage = mpa_pkl['markers'][marker]['taxon'].split('|t__')[0]
-            clade = lineage.split('|')[-1]
-
-            if clade.startswith('s__'):
-                species = clade.replace('s__', '')
-            else:
-                # mp2 marker tax. is not always the lowest available e.g.:
-                # k__Bacteria|p__Actinobacteria|c__Actinobacteria|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Gardnerella
-                # but only species is s__Gardnerella_vaginalis
-                node = tree.get_lineage(lineage)
-                node_names = [n.name for n in node.get_terminals()]
-                if len(node_names) == 1 and node_names[0].startswith('s__'):
-                    species = node_names[0].replace('s__', '')
-                else:
-                    continue
-
-            all_species.add(species)
-            n_markers += 1
-
-            # get only selected species
-            if 'species' in input_args and input_args['species'] is not None:
-                if species not in input_args['species']:
-                    continue
-
-            if species not in all_markers:
-                all_markers[species] = set()
-            all_markers[species].add(marker)
-
-        LOG.debug('MetaPhlAn db contains %s species, %s markers' %
-                  (len(all_species), n_markers))
-
-        # report selected species
-        if 'species' in input_args and input_args['species'] is not None:
-            species_intersect = set(
-                input_args['species']).intersection(all_species)
-            species_diff = set(
-                input_args['species']).difference(species_intersect)
-
-            LOG.debug('Selected species found in the database: %s/%s' %
-                      (len(species_intersect), len(input_args['species'])))
-            if len(species_intersect) < len(input_args['species']):
-                LOG.debug('Species not found in the database: %s' %
-                          ', '.join(species_diff))
-            all_species = species_intersect
-
-        for species in all_species:
-
-            # set output names
-            output_base = join(input_args['output_dir'], species)
-            marker_filename = output_base + '.markers.fa'
-            pos_filename = output_base + '.positions.txt'
-            gene_filename = output_base + '.gene_file.txt'
-            cmap_filename = output_base + '.contig_map.txt'
-
-            # check marker count
-            species_markers = sorted(all_markers[species])
-            n_markers = len(species_markers)
-            LOG.debug('Markers found for %s: %s' % (species, n_markers))
-            if not n_markers:
-                continue
-
-            total_marker_len = 0
-            gene_data = []
-            pos_data = ['%s\t%s\t%s' % ('contig', 'pos', 'len')]
-            remove_markers = set()
-
-            with open(marker_filename, 'w') as marker_file:
-
-                for marker in species_markers:
-                    if marker in mpa_markers:
-                        seq = mpa_markers[marker]
-                        marker_len = len(seq)
-
-                        contig_id = marker
-                        gene_id = marker
-                        strand = '+'
-                        beg = 1
-                        end = marker_len
-
-                        pos_data += [
-                            '%s\t%s\t%s' %
-                            (marker, total_marker_len, marker_len)
-                        ]
-                        gene_data += ['%s\t%s\t%s\t%s\t%s\t%s' % \
-                                      (contig_id, gene_id, beg, end, strand, seq.seq)]
-                        SeqIO.write(seq, marker_file, 'fasta')
-
-                        total_marker_len += marker_len
-                    else:
-                        remove_markers.add(marker)
-
-            if remove_markers:
-                LOG.debug('Dropping markers for %s: %s' % (species, len(remove_markers)))
-                species_markers = [m for m in species_markers if m not in remove_markers]
-
-            with open(gene_filename, 'w') as gene_file, \
-                    open(cmap_filename, 'w') as cmap_file, \
-                    open(pos_filename, 'w') as pos_file:
-
-                pos_file.write('\n'.join(pos_data) + '\n')
-                gene_file.write('\n'.join(gene_data) + '\n')
-                cmap_file.write('\n'.join(
-                    ['\t'.join([species, m]) for m in species_markers]) + '\n')
+        # expand and generate db from metaphlan markers/pkl files
+        mp2db(input_args)
 
     elif input_args['command'] == 'merge':
 
@@ -1055,12 +786,14 @@ def samestr(input_args):
             species = file.split('.')[0]
 
             # append list if file has been merged before
-            sample_names = file_path.replace(input_args['input_extension'], '.names.txt')
+            sample_names = file_path.replace(
+                input_args['input_extension'], '.names.txt')
             if isfile(sample_names):
-                with open(sample_names, 'r') as sn:
-                    sample = sn.read().strip().split('\n')
+                with open(sample_names, 'r', encoding="utf8") as s_n:
+                    sample = s_n.read().strip().split('\n')
             else:
-                    sample = file.split(input_args['input_extension'])[0].replace('%s.' % species, '')
+                sample = file.split(input_args['input_extension'])[
+                    0].replace(f'{species}.', '')
 
             # skip if not in selected species
             if input_args['species']:
@@ -1072,103 +805,110 @@ def samestr(input_args):
             else:
                 species_file_dict[species] += [[sample, file_path]]
 
-        args = []
+        cmd_args = []
         for idx, species in enumerate(species_file_dict.keys()):
-            args.append({})
-            args[idx]['species'] = species
-            args[idx]['input_files'] = species_file_dict[species]
-            args[idx]['output_dir'] = input_args['output_dir']
+            cmd_args.append({})
+            cmd_args[idx]['species'] = species
+            cmd_args[idx]['input_files'] = species_file_dict[species]
+            cmd_args[idx]['output_dir'] = input_args['output_dir']
 
-        args = parallelize_async(freq2freqs, args, input_args['nprocs'])
+        cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] in ['filter', 'stats', 'compare']:
 
         # For each species: group freqs with resp names
-        fs = {}
-        for f in input_args['input_files']:
-            species = basename(f).split(input_args['input_extension'])[0]
-            fs[species] = [f]
+        freqs = {}
+        for i_f in input_args['input_files']:
+            species = basename(i_f).split(input_args['input_extension'])[0]
+            freqs[species] = [i_f]
 
-        for n in input_args['input_names']:
-            species = basename(n).split('.names.txt')[0]
-            if species not in fs:
+        for i_n in input_args['input_names']:
+            species = basename(i_n).split('.names.txt')[0]
+            if species not in freqs:
                 LOG.warning('Skipping %s. Found name file '
-                            'but no SNV profile.' % species)
+                            'but no SNV profile.', species)
             else:
-                fs[species] += [n]
+                freqs[species] += [i_n]
 
-        for species, f in fs.items():
-            if len(f) != 2:
+        for species, freq in list(freqs.items()):
+            if len(freq) != 2:
                 LOG.warning('Skipping %s. Found SNV profile '
-                            'but no name file.' % species)
-                fs.pop(species)
+                            'but no name file.', species)
+                freqs.pop(species)
             if 'species' in input_args and input_args['species'] is not None:
                 if species not in input_args['species']:
-                    fs.pop(species)
+                    freqs.pop(species)
 
         # attach sample selection file
         if 'samples_select' in input_args:
-            for s in input_args['samples_select']:
-                species = basename(s).split('.select.txt')[0]
-                if species not in fs:
+            for i_s in input_args['samples_select']:
+                species = basename(i_s).split('.select.txt')[0]
+                if species not in freqs:
                     LOG.warning('Skipping %s. Found selection file '
-                                'but no SNV profile.' % species)
+                                'but no SNV profile.', species)
                 else:
-                    fs[species] += [s]
+                    freqs[species] += [i_s]
 
-        for species, f in fs.items():
-            if len(f) > 3:
+        for species, freq in list(freqs.items()):
+            if len(freq) > 3:
                 LOG.warning('Skipping %s. Found more than one '
-                            'sample selection file.' % species)
-                fs.pop(species)
-            elif len(f) == 2:
-                f += [None]
-            elif len(f) != 3:
-                LOG.error('Unexpected number of files (%s): %s.' %
-                          (len(f), species))
+                            'sample selection file.', species)
+                freqs.pop(species)
+            elif len(freq) == 2:
+                freq += [None]
+            elif len(freq) != 3:
+                LOG.error('Unexpected number of files (%s): %s.', len(freq), species)
                 exit(0)
 
         # Spread args over species
-        args = []
+        cmd_args = []
         for idx, (species, (input_file, input_name,
-                            input_select)) in enumerate(fs.items()):
-            args.append({})
-            args[idx]['input_file'] = input_file
-            args[idx]['input_name'] = input_name
-            args[idx]['input_select'] = input_select
-            args[idx]['species'] = species
+                            input_select)) in enumerate(freqs.items()):
+            cmd_args.append({})
+            cmd_args[idx]['input_file'] = input_file
+            cmd_args[idx]['input_name'] = input_name
+            cmd_args[idx]['input_select'] = input_select
+            cmd_args[idx]['species'] = species
 
             for arg in input_args:
                 if arg in [
                     'input_files', 'input_names', 'input_select', 'species'
                 ]:
                     continue
-                args[idx][arg] = input_args[arg]
+                cmd_args[idx][arg] = input_args[arg]
 
         if input_args['command'] == 'filter':
-            LOG.info('Filtering files: %s' % len(fs))
+            LOG.info('Filtering files: %s', len(freqs))
 
             # Run: filter
-            args = parallelize_async(filter_freqs, args, input_args['nprocs'])
+            cmd_args = parallelize_async(filter_freqs, cmd_args, input_args['nprocs'])
 
         elif input_args['command'] == 'stats':
-            LOG.info('Gathering statistics: %s' % len(fs))
+            LOG.info('Gathering statistics: %s', len(freqs))
 
             # Run: stats
-            args = parallelize_async(aln2stats, args, input_args['nprocs'])
+            cmd_args = parallelize_async(aln2stats, cmd_args, input_args['nprocs'])
 
         elif input_args['command'] == 'compare':
-            LOG.info('Comparing alignments: %s' % len(fs))
+            LOG.info('Comparing alignments: %s', len(freqs))
 
             # Run: compare
-            args = parallelize_async(compare, args, input_args['nprocs'])
+            cmd_args = parallelize_async(compare, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] == 'summarize':
-        args = serialize(summarize, [input_args])
+        cmd_args = serialize(summarize, [input_args])
 
     elif input_args['command'] == 'extract':
-        args = serialize(ref2freq, [input_args])
+        cmd_args = serialize(ref2freq, [input_args])
 
 
 if __name__ == "__main__":
-    samestr(read_params())
+    args = read_params()
+    logging.basicConfig(
+    level=getattr(logging, args['verbosity']),
+    stream=stderr,
+    format='%(asctime)s | %(levelname)s | %(name)s | %(funcName)s | %(lineno)d | %(message)s'
+    )
+    LOG = logging.getLogger(__name__)
+
+    samestr(args)

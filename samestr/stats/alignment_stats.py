@@ -1,5 +1,5 @@
-from __future__ import division
-from os.path import isdir, basename, isfile, join, exists
+
+from os.path import basename, join, exists
 import logging
 import warnings
 import numpy as np
@@ -86,11 +86,11 @@ def aln2stats(args):
         p_value = 0.05
         n_binom = np.nansum(stats.binom.cdf(
             x.max(axis=2), cov, 1.0 - illumina_error_rate) < p_value,
-                            axis=1)
+            axis=1)
         f_binom = n_binom / n_covered
         n_binom_segata = np.nansum(stats.binom.cdf(
             x.max(axis=2), cov, 1.0 - segata_error_rate) < p_value,
-                                   axis=1)
+            axis=1)
         f_binom_segata = n_binom_segata / n_covered
 
         # stats: fraction of covered sites,

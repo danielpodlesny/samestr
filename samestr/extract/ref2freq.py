@@ -1,20 +1,19 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.9
 """
-    ref2freq generates multiple sequence alignments from MetaPhlAn2
+    ref2freq generates multiple sequence alignments from MetaPhlAn
     marker sequences and supplied reference genomes [e.g. RefSeq, NCBI-Genome]
     which are further reduced to all positions in the initial
-    MetaPhlAn2 marker positions and concatenated.
+    MetaPhlAn marker positions and concatenated.
 
     Adapted StrainPhlAn's code [Truong et al.; Segata Lab]
     for adding references to MSA of sample consensus sequences
     to output to compatible numpy format
 """
 
-from sys import stderr
-from os import remove, mkdir
-from os.path import basename, join, isfile, isdir
+from os import remove, makedirs
+from os.path import join, isdir
+from sys import exit
 
-import cPickle
 import random
 from shutil import copyfile
 from glob import glob
@@ -28,24 +27,15 @@ from tempfile import SpooledTemporaryFile, NamedTemporaryFile
 import logging
 import logging.config
 
-import argparse as ap
 import numpy as np
 
 from Bio import SeqIO, Seq, SeqRecord, AlignIO
 from Bio.Align import MultipleSeqAlignment
-from Bio.Alphabet import IUPAC
 
 from samestr.utils import ooSubprocess
 from samestr.utils.ooSubprocess import trace_unhandled_exceptions
 from samestr.utils.utilities import all_exe
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    stream=stderr,
-    disable_existing_loggers=False,
-    format=
-    '%(asctime)s | %(levelname)s | %(name)s | %(funcName)s | %(lineno)d | %(message)s'
-)
 LOG = logging.getLogger(__name__)
 
 
@@ -68,7 +58,8 @@ def truncate_markers(args, reference_markers):
             # if marker_trunc_len, truncate
             if args['marker_trunc_len'] > 0:
                 reference_markers[reference][marker]['seq'] = \
-                reference_markers[reference][marker]['seq'][args['marker_trunc_len']:-args['marker_trunc_len']]
+                    reference_markers[reference][marker]['seq'][args['marker_trunc_len']
+                        :-args['marker_trunc_len']]
             truncated_markers_total_length += len(
                 reference_markers[reference][marker]['seq'])
 
@@ -83,7 +74,7 @@ def truncate_markers(args, reference_markers):
     return reference_markers
 
 
-def align(marker_fn, aln_program):
+def align(marker_fn, aln_program, aln_file):
     """
         Aligning `marker_fn` with `alignment program`
         returning alignment.
@@ -91,21 +82,27 @@ def align(marker_fn, aln_program):
 
     oosp = ooSubprocess.ooSubprocess()
 
+    # TODO: implement muscle 5 (double free corruption error if just one sequence)
+    # return marker if marker has just one sequence
+    # if len(list(SeqIO.parse(marker_fn, 'fasta'))) == 1:
+    #     copyfile(marker_fn, aln_file)
+    #     return
+
     if aln_program == 'muscle':
-        with open(marker_fn, 'r') as in_pipe:
-            alignment = oosp.ex('muscle',
-                                args=['-quiet', '-in', '-', '-out', '-'],
-                                in_pipe=in_pipe,
-                                get_out_pipe=True,
-                                verbose=False)
+        alignment = oosp.ex('muscle',
+                            # muscle 5 format, currently buggy
+                            # args=['-quiet', '-align', marker_fn, '-output', aln_file],
+                            # muscle v3.8.1551
+                            args=['-quiet', '-in', marker_fn, '-out', aln_file],
+                            get_output=True,  # wait for process to finish
+                            verbose=False)
 
     elif aln_program == 'mafft':
         alignment = oosp.ex('mafft',
-                            args=['--auto', marker_fn],
-                            get_out_pipe=True,
+                            args=['--auto', '--quiet', marker_fn],
+                            out_fn=aln_file,
                             verbose=False)
-
-    return alignment
+    return
 
 
 def align_clean(args):
@@ -119,12 +116,12 @@ def align_clean(args):
     aln_program = args['aln_program']
     reference_markers = args['reference_markers']
 
-    tmp_marker_file = NamedTemporaryFile(dir=tmp_dir, delete=False)
+    tmp_marker_file = NamedTemporaryFile(dir=tmp_dir, mode='a+t', delete=False)
     tmp_marker_fn = tmp_marker_file.name
 
     # writing blast result of marker for each reference from dict to fasta file
     ref_count = 0
-    for reference in reference_markers.keys():
+    for reference in list(reference_markers.keys()):
         if species_marker in reference_markers[reference]:
             ref_count += 1
             SeqIO.write(
@@ -137,18 +134,21 @@ def align_clean(args):
     tmp_marker_file.close()
 
     # aligning sequences in fasta file
-    alignment = align(tmp_marker_fn, aln_program)
+    tmp_alignment_file = NamedTemporaryFile(
+        dir=tmp_dir, mode='a+t', delete=True)
+
+    align(tmp_marker_fn, aln_program, tmp_alignment_file.name)
     remove(tmp_marker_fn)
 
     # adding alignment to out dicts
     seq = {}
-    for rec in SeqIO.parse(alignment, 'fasta'):
+    for rec in SeqIO.parse(tmp_alignment_file, 'fasta'):
         reference = rec.name
         seq[reference] = list(str(rec.seq))
 
     if args['alignment_fn']:
-        copyfile(alignment.name, args['alignment_fn'])
-    alignment.close()
+        copyfile(tmp_alignment_file.name, args['alignment_fn'])
+    tmp_alignment_file.close()
 
     if not seq:
         LOG.error('Fatal error in alignment step: %s' % species_marker)
@@ -205,7 +205,7 @@ def run_align_clean(args, reference_markers, species_markers_ordered):
     # seqs are ordered tuples
     for marker, _ in enumerate(seqs):
         if seqs[marker]:
-            references_with_alignment = seqs[marker].keys()
+            references_with_alignment = list(seqs[marker].keys())
 
             # index gaps in species_marker
             gap_positions = [
@@ -222,7 +222,7 @@ def run_align_clean(args, reference_markers, species_markers_ordered):
 
             # reduce marker to original mp_maker pos & length
             # add alignment seqs to reference dictionary
-            for reference in reference_markers.keys():
+            for reference in list(reference_markers.keys()):
                 if reference in references_with_alignment:
                     cat_seqs[reference] += [
                         n for idx, n in enumerate(seqs[marker][reference])
@@ -261,29 +261,29 @@ def blast_markers_against_references(args, species_markers):
     contigs = defaultdict(dict)
 
     # read references from files
-    p1 = SpooledTemporaryFile(dir=args['tmp_dir'])
+    p1 = SpooledTemporaryFile(mode='a+t', dir=args['tmp_dir'])
     for ref_fn in references:
 
         genome = ooSubprocess.splitext(ref_fn)[0]
         LOG.debug('Adding contigs for %s' % genome)
         if ref_fn.endswith('.bz2'):
-            ref = bz2.BZ2File(ref_fn, 'r')
+            ref = bz2.open(ref_fn, 'rt')
         elif ref_fn.endswith('.gz'):
-            ref = gzip.GzipFile(ref_fn, 'r')
+            ref = gzip.open(ref_fn, 'rt')
         elif ref_fn.endswith('.fna') or \
                 ref_fn.endswith('.fa') or \
                 ref_fn.endswith('.fasta'):
             ref = open(ref_fn, 'r')
         else:
-            LOG.error('Unknown file type: %s ' \
-                    'Fasta file should be raw [.fa, .fna, .fasta] ' \
-                    'or zipped with bzip2 [.bz2] or gzip [.gz]' % ref_fn)
+            LOG.error('Unknown file type: %s '
+                      'Fasta file should be raw [.fa, .fna, .fasta] '
+                      'or zipped with bzip2 [.bz2] or gzip [.gz]' % ref_fn)
             exit(1)
 
         # check duplicate contigs
         unique_contigs_only = True
         for rec in SeqIO.parse(ref, 'fasta'):
-            if rec.name in contigs.keys():
+            if rec.name in list(contigs.keys()):
                 LOG.error('Contig %s is not unique' %
                           (rec.name.split('___')[-1]))
                 unique_contigs_only = False
@@ -324,7 +324,7 @@ def blast_markers_against_references(args, species_markers):
             in_pipe=p1,
             verbose=True)
 
-    p1 = SpooledTemporaryFile(dir=args['tmp_dir'])
+    p1 = SpooledTemporaryFile(mode='a+t', dir=args['tmp_dir'])
 
     for unique_marker in unique_markers:
         SeqIO.write(species_markers[unique_marker], p1, 'fasta')
@@ -348,11 +348,12 @@ def blast_markers_against_references(args, species_markers):
     for line in extract_output:
         if line.strip() == '':
             break
-        line = line.strip().split()
+        line = line.decode().strip().split()
         marker_query = line[0]
         target_contig = line[1]
         pstart = int(line[8]) - 1
         pend = int(line[9]) - 1
+
         reference = contigs[target_contig]['genome']
 
         # extract extract positions from reference contigs
@@ -363,8 +364,8 @@ def blast_markers_against_references(args, species_markers):
                     target_contig]['seq'][pstart:pend + 1].upper()
             else:
                 reference_markers[reference][marker_query]['seq'] = \
-                     str(Seq.Seq(contigs[target_contig]['seq'][pend:pstart+1],
-                                 IUPAC.unambiguous_dna).reverse_complement()).upper()
+                    str(Seq.Seq(contigs[target_contig]['seq']
+                        [pend:pstart+1]).reverse_complement()).upper()
 
     # remove database
     for fn in glob('%s*' % blastdb_prefix):
@@ -392,7 +393,7 @@ def seqs2freqs(args, seqs, marker_pos):
         pos for pos, n in enumerate(seqs[args['species_marker_name']])
         if n != '-'
     ])
-    for reference in seqs.keys():
+    for reference in list(seqs.keys()):
         seqs[reference] = np.array(seqs[reference])[species_marker_pos]
     len_after_removal = len(seqs[args['species_marker_name']])
 
@@ -419,7 +420,7 @@ def seqs2freqs(args, seqs, marker_pos):
 
     # convert seqs to freqs, set dimensions to [m=sample, n=width, k=4]
     freqs = defaultdict(list)
-    for reference in seqs.keys():
+    for reference in list(seqs.keys()):
         freqs[reference] = np.array([
             n_freq[acgt.index(n)] if n in acgt else n_freq[acgt.index('-')]
             for n in seqs[reference]
@@ -427,9 +428,9 @@ def seqs2freqs(args, seqs, marker_pos):
         freqs[reference] = np.expand_dims(freqs[reference], axis=0)
         seqs[reference] = np.expand_dims(seqs[reference], axis=0)
 
-    # mkdir
+    # makedirs
     if not isdir(args['output_dir']):
-        mkdir(args['output_dir'])
+        makedirs(args['output_dir'])
 
     def _format_reference_name(name):
         # fasta, fna, fa, + gz
@@ -442,7 +443,7 @@ def seqs2freqs(args, seqs, marker_pos):
 
     # save freqs array to file .npy
     output_base = args['output_dir'] + '/' + args['species']
-    for reference in freqs.keys():
+    for reference in list(freqs.keys()):
         if reference.endswith('.markers'):
             continue
 
@@ -452,7 +453,7 @@ def seqs2freqs(args, seqs, marker_pos):
     # convert seqs to Bio SeqIO alignment object
     seqs_list = []
     name_order = []
-    for reference in seqs.keys():
+    for reference in list(seqs.keys()):
         name_order.append(_format_reference_name(reference))
         seqs_list.append(
             SeqRecord.SeqRecord(id=_format_reference_name(reference),
@@ -504,7 +505,7 @@ def ref2freq(args):
     reference_markers = blast_markers_against_references(args, species_markers)
 
     # add species_markers to extract output dict
-    for species_marker in species_markers.keys():
+    for species_marker in list(species_markers.keys()):
         reference_markers[args['species_marker_name']][species_marker] = {}
         reference_markers[
             args['species_marker_name']][species_marker]['seq'] = str(

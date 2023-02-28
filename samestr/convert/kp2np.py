@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-import argparse, cPickle, glob, re, sys
+#!/usr/bin/env python3.9
+import argparse
 import numpy as np
 from os.path import isdir, basename
 from os import makedirs
@@ -134,7 +134,7 @@ for genome in cmap:
         f_poly = round(n_poly / n_covered, 4)
     else:
         f_covered, f_mono, f_duo, \
-        f_tri, f_quat, f_poly = 0, 0, 0, 0, 0, 0
+            f_tri, f_quat, f_poly = 0, 0, 0, 0, 0, 0
 
     stat = [
         basename(np_filepath), genome, mean_cov, median_cov, n_sites, n_gaps,

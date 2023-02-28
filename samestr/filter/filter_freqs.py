@@ -1,5 +1,5 @@
-from __future__ import division
-from os.path import isdir, basename, isfile, join, exists
+
+from os.path import basename, join, exists
 import logging
 import warnings
 import numpy as np
@@ -14,7 +14,7 @@ def read_marker_positions(species_marker_file):
     """
     marker_positions = {}
     with open(species_marker_file, 'r') as marker_pos:
-        header = marker_pos.next()
+        header = next(marker_pos)
         for line in marker_pos:
             line = line.rstrip().split()
             marker = str(line[0]).strip()
@@ -44,17 +44,17 @@ def trunc_marker_ends(marker_pos, trunc_len):
              truncated given `marker_pos` and `trunc_len`.
     """
     trunc_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in marker_pos.items():
+    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
 
         # drop entirely if trunc_len * 2 longer than marker:
         if trunc_len * 2 > marker_len:
             LOG.info('Marker %s shorter than total `trunc_len`' % marker)
-            trunc_pos = trunc_pos.union(range(marker_start, marker_end))
+            trunc_pos = trunc_pos.union(list(range(marker_start, marker_end)))
             continue
 
         # set trunc positions
-        trunc_pos_start = range(marker_start, marker_start + trunc_len)
-        trunc_pos_end = range(marker_end - trunc_len, marker_end)
+        trunc_pos_start = list(range(marker_start, marker_start + trunc_len))
+        trunc_pos_end = list(range(marker_end - trunc_len, marker_end))
         trunc_pos = trunc_pos.union(trunc_pos_start, trunc_pos_end)
     return trunc_pos
 
@@ -66,9 +66,10 @@ def remove_marker_pos(marker_pos, remove_markers=None):
              removed given `remove_markers`.
     """
     remove_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in marker_pos.items():
+    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
         if marker in remove_markers:
-            remove_pos = remove_pos.union(range(marker_start, marker_end))
+            remove_pos = remove_pos.union(
+                list(range(marker_start, marker_end)))
     return remove_pos
 
 
@@ -134,7 +135,8 @@ def filter_freqs(args):
 
     # 0 Remove Samples
     if args['input_select'] is not None:
-        keep_samples = [n for n in xrange(0, len(samples)) if samples[n] in input_select]
+        keep_samples = [n for n in range(
+            0, len(samples)) if samples[n] in input_select]
         remove_n = len(samples) - len(keep_samples)
         samples = [samples[n] for n in keep_samples]
         LOG.info('Keeping %s out of %s selected sample(s). Removing: %s.' %
@@ -164,13 +166,13 @@ def filter_freqs(args):
     if args['marker_keep'] or args['marker_remove']:
 
         if args['marker_keep']:
-            ## available marker set difference w/ markers
+            # available marker set difference w/ markers
             keep_markers = read_marker_list(args['marker_keep']) & set(
                 marker_positions.keys())
             rm_marker_set = set(keep_markers) ^ set(marker_positions.keys())
 
         elif args['marker_remove']:
-            ## available marker set intersect w/ markers
+            # available marker set intersect w/ markers
             rm_marker_set = read_marker_list(args['marker_remove']) & set(
                 marker_positions.keys())
 
@@ -214,7 +216,7 @@ def filter_freqs(args):
 
     # 4.1 min-n or f horizontal coverage
     if args['samples_min_n_hcov']:
-        covered = np.sum(coverage(x, zero_nan=True) > 0, axis = 1)
+        covered = np.sum(coverage(x, zero_nan=True) > 0, axis=1)
         keep_samples = covered > args['samples_min_n_hcov']
         keep_samples_names = set(
             [samples[i] for i, b in enumerate(keep_samples) if b])
@@ -226,7 +228,8 @@ def filter_freqs(args):
 
     if args['samples_min_f_hcov']:
         covered = np.sum(coverage(x, zero_nan=True) > 0, axis=1)
-        keep_samples = np.true_divide(covered, x.shape[1]) > args['samples_min_f_hcov']
+        keep_samples = np.true_divide(
+            covered, x.shape[1]) > args['samples_min_f_hcov']
         keep_samples_names = set(
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
@@ -294,6 +297,17 @@ def filter_freqs(args):
         x = np.delete(x, list(removed_pos), axis=1)
 
     LOG.info('Remaining positions: %s.' % x.shape[1])
+
+    # 7 Clean up
+    # 7.1 Filter samples with no coverage
+    remove_samples = np.sum(coverage(x) > 0, axis=1) == 0
+    samples = [s for i, s in enumerate(samples) if not remove_samples[i]]
+    x = x[~remove_samples, :, :]
+    LOG.info('Removing {} sample(s) with no coverage.'.format(sum(remove_samples)))
+
+    # 7.2 Sample minimum
+    if not species_min_samples(args, x.shape[0]):
+        return False
 
     # Save retained samples to file
     samples_file = join(args['output_dir'], basename(args['input_name']))

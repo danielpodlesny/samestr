@@ -1,4 +1,4 @@
-from os.path import isdir, basename, isfile
+from os.path import isfile
 import logging
 import numpy as np
 

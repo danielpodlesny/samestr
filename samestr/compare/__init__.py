@@ -1,1 +1,1 @@
-from ._compare import compare
+from .compare import compare

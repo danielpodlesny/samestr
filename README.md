@@ -3,25 +3,22 @@ We developed **SameStr** as a bioinformatic tool for the identification of share
 
 SameStr's shared strains are specific to related but not unrelated sample pairs and can therefore be used to track strains across biological samples. As demonstrated with strain co-occurrence networks, this enables further applications such as for the quality screening of mislabelled data and possible contamination, or personal identification which raises further questions regarding study participant privacy. 
 
-SameStr is currently implemented in python 2.7 (should be updated to python 3.X in the future). While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
+SameStr has been updated to python 3.9 and is compatible with MetaPhlAn database versions 3 and 4. While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
 
 ## Citation
 Podlesny, D., Arze, C., Dörner, E., Verma, S., Dutta, S., Walter, J., & Fricke, W. F. (2022). Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation. Microbiome, 10(1), 53. https://doi.org/10.1186/s40168-022-01251-w
 
 ## Other studies using SameStr
-Podlesny, D., Durdevic, M., Paramsothy, S., Kaakoush, N. O., Högenauer, C., Gorkiewicz, G., Walter, J., & Fricke, W. F. (2022). Identification of clinical and ecological determinants of strain engraftment after fecal microbiota transplantation using metagenomics. Cell reports. Medicine, 3(8), 100711. https://doi.org/10.1016/j.xcrm.2022.100711
+Podlesny, D., Durdevic, M., Paramsothy, S., Kaakoush, N. O., Högenauer, C., Gorkiewicz, G., Walter, J., & Fricke, W. F. (2022). Identification of clinical and ecological determinants of strain engraftment after fecal microbiota transplantation using metagenomics. Cell Reports Medicine, 3(8), 100711. https://doi.org/10.1016/j.xcrm.2022.100711
 
 Podlesny, D., & Fricke, W. F. (2021). Strain inheritance and neonatal gut microbiota development: A meta-analysis. International journal of medical microbiology : IJMM, 311(3), 151483. https://doi.org/10.1016/j.ijmm.2021.151483
 
-
 # Acknowledgements
 We wrapped tools or borrowed code from these repositories:
-- [MetaPhlan2](https://bitbucket.org/biobakery/metaphlan2 "MetaPhlAn2 repository") (v2.6.0): Duy Tin Truong, Eric A Franzosa, Timothy L Tickle, Matthias Scholz, George Weingart, Edoardo Pasolli, Adrian Tett, Curtis Huttenhower & Nicola Segata. Nature Methods 12, 902-903 (2015)
-- [StrainPhlAn](https://bitbucket.org/biobakery/metaphlan2 "MetaPhlAn2 repository"): Duy Tin Truong, Adrian Tett, Edoardo Pasolli, Curtis Huttenhower, & Nicola Segata. Genome Research 27:626-638 (2017)
+- [MetaPhlan](https://github.com/biobakery/MetaPhlAn "MetaPhlAn repository") (v2.6.0): Duy Tin Truong, Eric A Franzosa, Timothy L Tickle, Matthias Scholz, George Weingart, Edoardo Pasolli, Adrian Tett, Curtis Huttenhower & Nicola Segata. Nature Methods 12, 902-903 (2015)
+- [StrainPhlAn](https://github.com/biobakery/MetaPhlAn "StrainPhlAn repository"): Duy Tin Truong, Adrian Tett, Edoardo Pasolli, Curtis Huttenhower, & Nicola Segata. Genome Research 27:626-638 (2017)
 - [Strain Finder](https://github.com/cssmillie/StrainFinder "StrainFinder repository"): Strain Tracking Reveals the Determinants of Bacterial Engraftment in the Human Gut Following Fecal Microbiota Transplantation (https://doi.org/10.1016/j.chom.2018.01.003)
 - [kpileup](https://github.com/cssmillie/StrainFinder "StrainFinder repository"): (Katherine Huang, Broad Institute)
-- [Kneaddata](https://bitbucket.org/biobakery/kneaddata "Kneaddata repository") (v0.6.1)
-- [Fastq-Stats](https://expressionanalysis.github.io/ea-utils/ "ea-utils repository") (v1.01): ea-utils
 
 # Overview
 **SameStr** identifies shared strains between pairs of metagenomic samples based on the similarity of SNV profiles.
@@ -33,7 +30,6 @@ Here, we present a pipeline to process data starting from raw single or paired-e
 **SameStr** must be used from the command line and encompasses multiple modules which can be called by using the following syntax: **`samestr <command>`**. Help for specific command-line usage is available by using the `--help` option with the `samestr` command (`samestr --help`) or any of its modules (`samestr convert --help`).
 
 [Module Description](#description)
-- [align](#align) [deprecated]: preprocess and align `fastq` files to MetaPhlAn2 markers `sam`. This has been deprecated and is only available for use with MetaPhlAn version 2.
 - [convert](#convert): convert MetaPhlAn alignments `sam` to SNV profiles `npy`
 - [extract](#extract): extract SNV profiles `npy` from reference genomes `fasta`
 - [merge](#merge): merge SNV profiles `npy` + `npy` from multiple sources
@@ -57,46 +53,76 @@ pip install .
 Next, set up the database with [db](#db).
 
 ## Requirements
-SameStr has been tested with the following tool versions:
-- [MetaPhlan2](https://bitbucket.org/biobakery/metaphlan2 "MetaPhlAn2 repository") (>=v2.6)
-- [Kneaddata](https://bitbucket.org/biobakery/kneaddata "Kneaddata repository") (v0.6.1)
-- [Fastq-Stats](https://expressionanalysis.github.io/ea-utils/ "ea-utils repository") (v1.01)
+SameStr requires python 3 or newer and has been tested with the following tool versions:
+- [MetaPhlan](https://github.com/biobakery/MetaPhlAn "MetaPhlAn repository") (>=v3.0)
 - Samtoools (v0.1.19)
 - MUSCLE (v3.8.31)
 - blastn (2.8.1+)
+Make 
 
 # Description
-## align [deprecated]
-Deprecated. See the notes on [compatibility with MetaPhlAn ≥3](#compatibility-with-metaphlan-3). 
-OPTIONAL for use with MetaPhlAn2. This command conveniently wraps `kneaddata`, `fastq-stats`, and `MetaPhlAn2`. Use it to first perform basic quality control measures such as read length trimming and host-genome mapping, gather qc and fastq statistics, and finally map cleaned sequence reads against MetaPhlAn2's species-specific marker sequences.
-
-Although it is not required to follow this exact pre-processing scheme for the **SameStr** analysis, we highly recommend quality processing of your raw sequencing data. When using alternative qc protocols, make sure to align sequences with MetaPhlAn, further specifying the `-s` option to save the alignments in `sam` format. MetaPhlAn `sam` files are required for downstream processing.
-
+## db
+The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn `pickle` file (e.g. `mpa_vJan21_CHOCOPhlAnSGB_202103.pkl`) and `marker` file (e.g. `mpa_vJan21_CHOCOPhlAnSGB_202103.fna.bz2`). Database files are required for further processing and can be generated for individual species or all MetaPhlAn species that are available. 
 
 ### Usage example
-The input to **`samestr align`** are `fastq` files with the file extension `fastq` or `fastq.gz`. Use `--input-sequence-type` to specify `single-end` or `paired-end` sequence format. By default, **`samestr align`** expects `paired-end` files and therefore searches for file pairs by considering common read-pair file endings such as `R1.fastq, R2.fastq` or `_1.fastq, _2.fastq`. For parallel processing, specify `--nprocs`.
 ```
-samestr align \
---input-files RAW/*fastq.gz \
---input-sequence-type paired \
---host-bowtie2db Homo_sapiens_Bowtie2_v0.1/Homo_sapiens \
---metaphlan2-exe /opt/metaphlan2/metaphlan2.py \
---mpa /opt/metaphlan2/db_v20/mpa_v20_m200 \
---mpa-pkl /opt/metaphlan2/db_v20/mpa_v20_m200.pkl \
---nprocs 30 \
---output-dir out_align/
+samestr db \
+--mpa-pkl metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.pkl \
+--mpa-markers metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.fna.bz2 \
+--output-dir marker_db/
 ```
 
-### Output Files
-| Tool | Output File Extension | Description |
-| :-: | :-: | :- |
-| `Kneaddata` | .fastq | Quality processed fastq read file. Excluding reads mapped to the specified host genome. In case of paired-end data, including both orphan and paired read data |
-| `Kneaddata` | .log | Protocol of quality processing |
-| `Kneaddata` | .qc_stats.txt | Tabulated statistics of quality processing |
-| `fastq-stats` | .fastq_summary | Tabulated fastq read statistics |
-| `MetaPhlan` | .bowtie2out | Intermediate bowtie alignment |
-| `MetaPhlan` | .sam.bz2 | Marker sequence alignments |
-| `MetaPhlan` | .profile.txt | Taxonomic assignment & relative abundance table
+You might want to combine the two marker files that have been published with the recent versions of MetaPhlAn to generate a database for all species. This can be done with the following commands:
+```
+# obtain MetaPhlAn db from Segata Lab's FTP server (as of writing)
+wget http://cmprod1.cibio.unitn.it/biobakery4/metaphlan_databases/mpa_vJan21_CHOCOPhlAnSGB_202103.tar
+
+# untar
+tar -xvf mpa_vJan21_CHOCOPhlAnSGB_202103.tar
+
+# concatenate
+cat mpa_vJan21_CHOCOPhlAnSGB_202103_SGB.fna.bz2 \
+    mpa_vJan21_CHOCOPhlAnSGB_202103_VSG.fna.bz2 > \
+        mpa_vJan21_CHOCOPhlAnSGB_202103.fna.bz2
+```
+Note that you don't need to decompress the `fna.bz2` file before concatenating or using it with **SameStr**.
+
+## align
+Deprecated. The **`samestr align`** command previously wrapped `kneaddata`, `fastq-stats`, and `MetaPhlAn2` and you could use it to first perform basic quality control measures such as read length trimming and host-genome mapping, gather qc and fastq statistics, and finally map cleaned sequence reads against MetaPhlAn2's species-specific marker sequences.
+
+Please refer to the respective tools to conduct QC preprocessing and alignment. Although it is not required to follow this exact pre-processing scheme for the **SameStr** analysis, we highly recommend quality processing of your raw sequencing data. 
+
+Make sure to align sequences with MetaPhlAn, further specifying the `-s` or `--samout` option to save the alignments in `sam` format. MetaPhlAn `sam` files are required for downstream processing.
+
+For example: 
+
+Kneaddata:
+```
+kneaddata \
+    -i ${ID}.R1.fastq.gz \
+    -i ${ID}.R2.fastq.gz \
+    -db /path-to-db/Homo_sapiens_Bowtie2_v0.1/Homo_sapiens \
+    -p 2 \
+    -t 15 \
+    --max-memory ${RAM} \
+    --output-prefix ${ID} \
+    --cat-final-output \
+    --remove-intermediate-output \
+    -o QC/ 
+```
+
+MetaPhlAn:
+```
+metaphlan QC/${ID}.fastq.gz \
+    --bowtie2db /path-to-metaphlan-db/ \
+    --input_type fastq \
+    --nproc 30 \
+    --legacy-output \
+    -t rel_ab \
+    --bowtie2out ${ID}.mp.bowtie2out \
+    --samout ${ID}.mp.sam.bz2 \
+    -o ${ID}.mp.profile.txt
+```
 
 ## convert
 Convert MetaPhlAn marker alignments to nucleotide variant profiles. 
@@ -121,7 +147,7 @@ Per Species:
 | T | 0 | 0 | 14 | 0 | .. |
 
 ## extract
-The module **`samestr extract`** obtains MetaPhlAn marker sequences from reference genomes by using BLASTN as described in the StrainPhlAn paper. 
+The module **`samestr extract`** obtains MetaPhlAn marker sequences from reference genomes by using BLASTN. 
 
 ### Usage example
 The input to **`samestr extract`** are genomic sequences in `fasta` format. For parallel processing, specify `--nprocs`. Note: This step requires a MetaPhlAn database regenerated with [samestr db](#db).
@@ -146,7 +172,7 @@ samestr merge \
 ```
 
 ## filter
-The module **`samestr filter`** provides extensive options for global, per sample, marker, and position filtering of nucleotide variant profiles based on absolute (including n, mean, sd) and relative alignment horizontal and vertical alignment coverage. 
+The module **`samestr filter`** provides extensive options for global, per sample, marker, and position filtering of nucleotide variant profiles based on absolute (including n, mean, sd) and relative alignment horizontal and vertical alignment coverage. Refer to the command line help for more information.
 
 ### Usage example
 For parallel processing, specify `--nprocs`.
@@ -206,75 +232,4 @@ samestr stats \
 --output-dir out_stats_/
 ```
 
-## db
-The module **`samestr db`** has to be used after installation of SameStr in order to generate database files from MetaPhlAn `mpa-pkl` and `all_markers.fasta`. Database files are required for further processing and can be generated for individual species or all MetaPhlAn species that are available. Please not the adjustments that are currently needed for [compatibility with MetaPhlAn 3 and 4](#compatibility-with-metaphlan-3).
-
-### Usage example
-```
-samestr db \
---mpa-pkl metaphlan2/db_v20/mpa_v20_m200.pkl \
---mpa-markers metaphlan2/all_markers/all_markers.fasta \
---output-dir marker_db/
-```
-
-# Compatibility with MetaPhlAn ≥3
-With version 3+ MetaPhlAn has seen some major changes, including a rewrite to python 3 and a change in the output table format. SameStr, which relies on the MetaPhlAn markers and output tables, is currently implemented in python 2.7. With a few workarounds, SameStr can be run successfully using markers from both MetaPhlAn3 (mpa_v30_CHOCOPhlAn_201901) and MetaPhlAn4 (mpa_vJan21_CHOCOPhlAnSGB_202103, tbd).
-
-
-## align [deprecated]
-The align step is a convenience wrapper around MetaPhlAn2 and kneaddata. Due to python incompatibilities, the align step will be deprecated for future MetaPhlAn versions. 
-
-The user should run quality control measures and MetaPhlAn on their own. For example:
-
-Kneaddata:
-```
-kneaddata \
-    -i ${ID}.R1.fastq.gz \
-    -i ${ID}.R2.fastq.gz \
-    -db /path-to-db/Homo_sapiens_Bowtie2_v0.1/Homo_sapiens \
-    -p 2 \
-    -t 15 \
-    --max-memory ${RAM} \
-    --output-prefix ${ID} \
-    --cat-final-output \
-    --remove-intermediate-output \
-    -o QC/ 
-```
-
-MetaPhlAn:
-```
-metaphlan QC/${ID}.fastq.gz \
-    --bowtie2db /path-to-db/metaphlan3/ \
-    --input_type fastq \
-    --nproc 30 \
-    --legacy-output \
-    -t rel_ab \
-    --bowtie2out ${ID}.mp.bowtie2out \
-    --samout ${ID}.mp.sam.bz2 \
-    -o ${ID}.mp.profile.txt
-```
-For MetaPhlAn, it is important to include the `--legacy-output` and `--samout` flags, to generate the required outputs in compatible formats.
-
-
-## db
-Due to updates to python's pickle library MetaPhlAn3 `mpa_pkl` files have to be converted to the old pickle format before they can be used with SameStr:
-```
-conda create --name py3.7 py=3.7
-conda activate py3.7
-
-# within python 3 environment 
-import pickle
-import bz2
-mpa_pkl_file = 'mpa_v30_CHOCOPhlAn_201901.pkl'
-mpa_pkl = pickle.load(bz2.BZ2File(mpa_pkl_file))
-
-f = bz2.BZ2File(mpa_pkl_file.replace('.pkl', '.py2.pkl'), 'wb')
-pickle.dump(mpa_pkl, f, protocol = 0)
-```
-
-After conversion of the pickle file, you can then use either of:
-- MetaPhlAn 3: `mpa_v30_CHOCOPhlAn_201901.fna` and `mpa_v30_CHOCOPhlAn_201901.py2.pkl`
-- MetaPhlAn 4: `mpa_vJan21_CHOCOPhlAnSGB_202103.fna` and `mpa_vJan21_CHOCOPhlAnSGB_202103.py2.pkl`
-
-as input for [samestr db](#db). The analysis can then be continued from [samestr convert](#convert).
  

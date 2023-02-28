@@ -1,6 +1,6 @@
-#!/usr/bin/env python
-#Author: Duy Tin Truong (duytin.truong@unitn.it)
-#        at CIBIO, University of Trento, Italy
+#!/usr/bin/env python3.9
+# Original Author: Duy Tin Truong (duytin.truong@unitn.it)
+# at CIBIO, University of Trento, Italy
 
 import sys
 import argparse as ap
@@ -35,15 +35,9 @@ def dump_file(ifn):
     elif ifn.endswith('.sam'):
         ifile = open(ifn, 'r')
         file_ext = '.sam'
-    elif ifn.endswith('.sra'):
-        oosp = ooSubprocess.ooSubprocess()
-        ifile = oosp.ex('fastq-dump',
-                        args=['-Z', ifn, '--split-spot'],
-                        get_out_pipe=True)
-        file_ext = '.sra'
     else:
-        raise Exception('Unrecognized format! The format should be .bz2, .gz'\
-                '.tar.bz2, .tar.gz, .sra, .sam.bz2, .sam, or .fastq\n')
+        raise Exception('Unrecognized format! The format should be .bz2, .gz'
+                        '.tar.bz2, .tar.gz, .sra, .sam.bz2, .sam, or .fastq\n')
 
     try:
         if file_ext in ['.tar.bz2', '.tar.gz']:
@@ -54,7 +48,7 @@ def dump_file(ifn):
                         sys.stdout.write(line)
         else:
             for line in ifile:
-                sys.stdout.write(line)
+                sys.stdout.write(line.decode('utf-8'))
     except:
         sys.stderr.write('Error while dumping file %s\n' % ifn)
         raise
