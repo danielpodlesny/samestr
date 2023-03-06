@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.9
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
 __author__ = 'Daniel Podlesny (daniel.podlesny@embl.de)'
-__version__ = '1.2023.02-1'
+__version__ = '1.2023.03-1'
 
 from sys import stderr, argv
 from os.path import basename, dirname, realpath, isdir, isfile
@@ -57,7 +57,7 @@ def read_params():
         required=False,
         default='INFO',
         metavar='STR',
-        options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         type=str,
         help='Set the verbosity of the program. '
              'Options: DEBUG, INFO, WARNING, ERROR, CRITICAL.')
