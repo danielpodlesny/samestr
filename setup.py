@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='samestr',
-      version='2023.02',
+      version='1.2023.03-1',
       description='SameStr identifies shared strains between pairs of '
                   'metagenomic samples based on the similarity of SNV profiles.',
       author='Daniel Podlesny',

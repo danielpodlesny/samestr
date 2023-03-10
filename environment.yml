@@ -1,4 +1,4 @@
-name: samestr-py3
+name: samestr
 channels:
   - conda-forge
   - defaults
