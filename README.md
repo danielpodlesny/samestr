@@ -1,3 +1,6 @@
+[![PyPI version](https://badge.fury.io/py/samestr.svg)](https://badge.fury.io/py/samestr)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 # SameStr
 We developed **SameStr** as a bioinformatic tool for the identification of shared microbial strains in metagenomic shotgun sequencing data. SameStr is related to StrainPhlAn as both use the same taxon-specific MetaPhlAn markers to identify and compare species-specific SNV profiles. Difference lies in the handling of SNVs, as StrainPhlAn processes only the majority variant at each position, whereas SameStr considers all possible variants in the alignments. 
 
@@ -49,7 +52,7 @@ SameStr requires python>=3.9 and has been tested with the following software ver
 - Glibc (v2.28)
 SameStr is fully compatible with MetaPhlAn database versions 3 and 4.
 
-## bioconda
+## bioconda [pending]
 SameStr can be install through conda by using the following command:
 ```
 conda install -c bioconda samestr
