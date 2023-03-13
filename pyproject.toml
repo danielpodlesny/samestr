@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "samestr"
-version = "1.2023.03-1"
+version = "1.2023.03-13"
 authors = [
   { name="Daniel Podlesny", email="daniel.podlesny@embl.de" },
 ]
@@ -13,10 +13,15 @@ readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-    "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: Console",
+    "Natural Language :: English"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+"Homepage" = "https://github.com/danielpodlesny/samestr"
+"Bug Tracker" = "https://github.com/danielpodlesny/samestr/issues"
+"Publication" = "https://doi.org/10.1186/s40168-022-01251-w"

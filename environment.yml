@@ -4,13 +4,14 @@ channels:
   - defaults
   - bioconda
 dependencies:
-  - biopython
-  - bzip2
-  - numpy
-  - pandas
+  - biopython=1.81
+  - numpy=1.24.2
+  - pandas=1.5.3
+  - scipy=1.10.0
   - python=3.9
-  - readline
-  - blast >=2.6.0
+  - blast>=2.6.0
   - muscle=3.8.1551
   - mafft=7.515
   - samtools=0.1.19
+  - pip:
+    - pysam==0.20.0
