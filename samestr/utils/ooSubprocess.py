@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 import subprocess
 import os
 import multiprocessing
@@ -18,7 +18,7 @@ class ooSubprocessException(Exception):
 
 
 class ooSubprocess:
-    def __init__(self, tmp_dir='tmp/'):
+    def __init__(self, tmp_dir='tmp-ooSubprocess/'):
         self.chain_cmds = []
         self.tmp_dir = tmp_dir
         makedirs(tmp_dir)
@@ -73,6 +73,7 @@ class ooSubprocess:
                                                    **kwargs)
             else:
                 result = subprocess.check_call(cmd, stdin=in_pipe, **kwargs)
+
             return result
         except KeyboardInterrupt:
             if self.current_process is not None:
