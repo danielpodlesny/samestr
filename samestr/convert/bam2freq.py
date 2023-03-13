@@ -56,7 +56,7 @@ def bam2freq(arg):
         remove(arg['contig_map'])
         remove(arg['kp'])
         remove(arg['bam'])
-        remove(arg['bai'])
+        remove(arg['bam'] + '.bai')
 
     LOG.debug('Finished: %s' % arg['np'])
     return arg
