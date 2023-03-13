@@ -30,19 +30,33 @@ Here, we present a pipeline to process data starting from raw single or paired-e
 **SameStr** must be used from the command line and encompasses multiple modules which can be called by using the following syntax: **`samestr <command>`**. Help for specific command-line usage is available by using the `--help` option with the `samestr` command (`samestr --help`) or any of its modules (`samestr convert --help`).
 
 [Module Description](#description)
+- [db](#db): regenerate species marker db from MetaPhlAn markers `mpa-pkl`
 - [convert](#convert): convert MetaPhlAn alignments `sam` to SNV profiles `npy`
 - [extract](#extract): extract SNV profiles `npy` from reference genomes `fasta`
 - [merge](#merge): merge SNV profiles `npy` + `npy` from multiple sources
 - [filter](#filter): filter SNV profiles `npy`
+- [stats](#stats): report coverage stats `tsv` for SNV profiles `npy`
 - [compare](#compare): compare SNV profiles `npy` to determine their similarity and overlapping coverage `tsv`
 - [summarize](#summarize): summarize shared strains and strain co-occurrence `tsv`
-- [stats](#stats): report coverage stats `tsv` for SNV profiles `npy`
-- [db](#db): regenerate species marker db from MetaPhlAn markers `mpa-pkl`
 
 # Installation
-Currently, installation is possible with conda by following these steps:
+It is highly recommended to install SameStr in a conda environment, which will install the required dependencies automatically.
 
-Clone this repository, recreate the environment with conda and install SameStr with pip:
+## Requirements
+SameStr requires python>=3.9 and has been tested with the following software versions:
+- Samtoools (v0.1.19)
+- MUSCLE (v3.8.31)
+- Glibc (v2.28)
+SameStr is fully compatible with MetaPhlAn database versions 3 and 4.
+
+## bioconda
+SameStr can be install through conda by using the following command:
+```
+conda install -c bioconda samestr
+```
+
+## conda
+You can also clone this repository, recreate the environment with conda and install SameStr with pip:
 ```
 git clone https://github.com/danielpodlesny/samestr.git
 cd samestr
@@ -50,15 +64,22 @@ conda env create -f environment.yml
 conda activate samestr
 pip install .
 ```
-Next, set up the database with [db](#db).
 
-## Requirements
-SameStr requires python 3 or newer and has been tested with the following tool versions:
-- [MetaPhlan](https://github.com/biobakery/MetaPhlAn "MetaPhlAn repository") (>=v3.0)
-- Samtoools (v0.1.19)
-- MUSCLE (v3.8.31)
-- blastn (2.8.1+)
-Make 
+## pypi
+SameStr can be installed from pypi with pip by using the following command:
+```
+pip install samestr
+```
+
+For the pip installation to work, make sure to install the following dependencies manually:
+
+```
+blast>=2.6.0
+glibc>=2.3
+muscle==3.8.1551 and/or mafft==7.515
+python>=3.9
+samtools==0.1.19
+```
 
 # Description
 ## db
@@ -191,6 +212,18 @@ samestr filter \
 --output-dir out_filter/
 ```
 
+## stats
+The module **`samestr stats`** can be used to generate statistics related to coverage and nucleotide diversity in nucleotide variant profiles at any step in the analysis pipeline. 
+
+### Usage example
+```
+samestr stats \
+--input-files out_filter/*.npy \
+--input-names out_filter/*.names.txt \
+--nprocs 30 \
+--output-dir out_stats_/
+```
+
 ## compare
 Due to the nature of the consensus rule, StrainPhlAn's accuracy is only given when the dominant strain has above 50% relative abundance in the species population (e.g. 70%/20%/10%). Genotypes reconstructed with StrainPhlAn are confounded when the dominant strain does not hold the majority at all positions, such as in more balanced mixtures (e.g. 40%/20%/20%/20%) or in low-coverage regions where subdominant strains can hold the majority (40% < 20%+20%+20%) over the most abundant strain. 
 
@@ -219,17 +252,3 @@ samestr summarize \
 --mp-profiles-dir out_align/metaphlan/ \
 --output-dir out_summarize/
 ```
-
-## stats
-The module **`samestr stats`** can be used to generate statistics related to coverage and nucleotide diversity in nucleotide variant profiles at any step in the analysis pipeline. 
-
-### Usage example
-```
-samestr stats \
---input-files out_filter/*.npy \
---input-names out_filter/*.names.txt \
---nprocs 30 \
---output-dir out_stats_/
-```
-
- 
