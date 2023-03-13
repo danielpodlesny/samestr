@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 """
     ref2freq generates multiple sequence alignments from MetaPhlAn
     marker sequences and supplied reference genomes [e.g. RefSeq, NCBI-Genome]
@@ -74,13 +74,13 @@ def truncate_markers(args, reference_markers):
     return reference_markers
 
 
-def align(marker_fn, aln_program, aln_file):
+def align(args, marker_fn, aln_file):
     """
         Aligning `marker_fn` with `alignment program`
         returning alignment.
     """
 
-    oosp = ooSubprocess.ooSubprocess()
+    oosp = ooSubprocess.ooSubprocess(tmp_dir=args['tmp_dir'])
 
     # TODO: implement muscle 5 (double free corruption error if just one sequence)
     # return marker if marker has just one sequence
@@ -88,7 +88,7 @@ def align(marker_fn, aln_program, aln_file):
     #     copyfile(marker_fn, aln_file)
     #     return
 
-    if aln_program == 'muscle':
+    if args['aln_program'] == 'muscle':
         alignment = oosp.ex('muscle',
                             # muscle 5 format, currently buggy
                             # args=['-quiet', '-align', marker_fn, '-output', aln_file],
@@ -97,7 +97,7 @@ def align(marker_fn, aln_program, aln_file):
                             get_output=True,  # wait for process to finish
                             verbose=False)
 
-    elif aln_program == 'mafft':
+    elif args['aln_program'] == 'mafft':
         alignment = oosp.ex('mafft',
                             args=['--auto', '--quiet', marker_fn],
                             out_fn=aln_file,
@@ -111,34 +111,28 @@ def align_clean(args):
         returning multiple sequence alignment as dicts of numpy arrays:
             seq, DNA sequences: ['A', 'T', ..]
     """
-    species_marker = args['species_marker']
-    tmp_dir = args['tmp_dir']
-    aln_program = args['aln_program']
-    reference_markers = args['reference_markers']
-
-    tmp_marker_file = NamedTemporaryFile(dir=tmp_dir, mode='a+t', delete=False)
+    tmp_marker_file = NamedTemporaryFile(dir=args['tmp_dir'], mode='a+t', delete=False)
     tmp_marker_fn = tmp_marker_file.name
 
     # writing blast result of marker for each reference from dict to fasta file
     ref_count = 0
-    for reference in list(reference_markers.keys()):
-        if species_marker in reference_markers[reference]:
+    for reference in list(args['reference_markers'].keys()):
+        if args['species_marker'] in args['reference_markers'][reference]:
             ref_count += 1
             SeqIO.write(
                 SeqRecord.SeqRecord(
                     id=reference,
                     description='',
                     seq=Seq.Seq(
-                        reference_markers[reference][species_marker]['seq'])),
+                        args['reference_markers'][reference][args['species_marker']]['seq'])),
                 tmp_marker_file, 'fasta')
     tmp_marker_file.close()
 
     # aligning sequences in fasta file
     tmp_alignment_file = NamedTemporaryFile(
-        dir=tmp_dir, mode='a+t', delete=True)
+        dir=args['tmp_dir'], mode='a+t', delete=not args['keep_tmp_files'])
 
-    align(tmp_marker_fn, aln_program, tmp_alignment_file.name)
-    remove(tmp_marker_fn)
+    align(args, tmp_marker_fn, tmp_alignment_file.name)
 
     # adding alignment to out dicts
     seq = {}
@@ -149,6 +143,10 @@ def align_clean(args):
     if args['alignment_fn']:
         copyfile(tmp_alignment_file.name, args['alignment_fn'])
     tmp_alignment_file.close()
+
+    # delete temporary directory
+    if not args['keep_tmp_files']:
+        remove(tmp_marker_fn)
 
     if not seq:
         LOG.error('Fatal error in alignment step: %s' % species_marker)
@@ -172,6 +170,7 @@ def run_align_clean(args, reference_markers, species_markers_ordered):
         args_list[i]['output_dir'] = args['output_dir']
         args_list[i]['aln_program'] = args['aln_program']
         args_list[i]['reference_markers'] = reference_markers
+        args_list[i]['keep_tmp_files'] = args['keep_tmp_files']
         if args['save_marker_aln']:
             formatted_marker_id = sub(r'[^a-zA-Z0-9 \n\.]', '_',
                                       species_markers_ordered[i])

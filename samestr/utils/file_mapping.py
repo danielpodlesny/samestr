@@ -16,59 +16,9 @@ def set_output_structure(args):
     out_dir = abspath(args[0]['output_dir']) + '/'
     cmd = args[0]['command']
 
-    # dir names
-    kneaddata = 'kneaddata/'
-    fastqstats = 'fastq_stats/'
-    metaphlan = 'metaphlan/'
-    bam = 'bam/'
-    freq = 'samestr/'
-
     ooSubprocess.makedirs(out_dir)
 
-    # dir and file paths
-    if cmd == 'align':
-        kneaddata_dir, \
-            fastqstats_dir, \
-            metaphlan_dir, \
-            bam_dir, \
-            freq_dir = \
-            out_dir + kneaddata, \
-            out_dir + fastqstats, \
-            out_dir + metaphlan, \
-            out_dir + bam, \
-            out_dir + freq
-
-        # make base dirs
-        _ = [
-            ooSubprocess.makedirs(d)
-            for d in [kneaddata_dir, fastqstats_dir, metaphlan_dir]
-        ]
-
-        for arg in args:
-            n = arg['bname']
-
-            # kneaddata
-            arg['fastq_clean'] = kneaddata_dir + n + '.fastq'
-            arg['qc_stats'] = kneaddata_dir + n + '.qc_stats.txt'
-            arg['qc_log'] = kneaddata_dir + n + '.log'
-
-            # fastq-stats
-            arg['fastq_summary'] = fastqstats_dir + n + '.fastq_summary.txt'
-
-            # metaphlan
-            arg['sam'] = metaphlan_dir + n + '.sam.bz2'
-            arg['bowtie2out'] = metaphlan_dir + n + '.bowtie2out'
-            arg['mp_profile'] = metaphlan_dir + n + '.profile.txt'
-
-    elif cmd == 'convert':
-
-        bam_dir, \
-            freq_dir = \
-            out_dir + bam, \
-            out_dir + freq
-
-        # make base dirs
-        _ = [ooSubprocess.makedirs(d) for d in [bam_dir, freq_dir]]
+    if cmd == 'convert':
 
         for arg in args:
             n = arg['bname']
@@ -92,18 +42,20 @@ def set_output_structure(args):
                 LOG.error('MetaPhlAn file not found: %s' % arg['mp_profile'])
                 exit(1)
 
-            # sam2bam
-            arg['bam'] = bam_dir + n + '.bam'
+            # output
+            sample_dir = out_dir + n + '/'
 
-            # bam2freq
-            _freq_sample_dir = freq_dir + n + '/'
-            arg['gene_file'] = _freq_sample_dir + n + '.gene_file.txt'
-            arg['contig_map'] = _freq_sample_dir + n + '.contig_map.txt'
-            arg['kp'] = _freq_sample_dir + n + '.kp.txt'
-            arg['np'] = _freq_sample_dir
+            ## sam2bam
+            arg['bam'] = sample_dir + n + '.bam'
+
+            ## bam2freq
+            arg['gene_file'] = sample_dir + n + '.gene_file.txt'
+            arg['contig_map'] = sample_dir + n + '.contig_map.txt'
+            arg['kp'] = sample_dir + n + '.kp.txt'
+            arg['np'] = sample_dir
 
             # make sample dirs
-            ooSubprocess.makedirs(_freq_sample_dir)
+            ooSubprocess.makedirs(sample_dir)
 
     return args
 

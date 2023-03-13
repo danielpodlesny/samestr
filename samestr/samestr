@@ -1,7 +1,7 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
 __author__ = 'Daniel Podlesny (daniel.podlesny@embl.de)'
-__version__ = '1.2023.03-1'
+__version__ = '1.2023.03-3'
 
 from sys import stderr, argv
 from os.path import basename, dirname, realpath, isdir, isfile
@@ -48,8 +48,21 @@ def read_params():
     parser.add_argument(
         '--version',
         action='version',
-        version=f'samestr-{__version__}'
+        version=f'samestr-{__version__}',
+        help='Show version of the program and exit.'
     )
+
+    # Print citation
+    parser.add_argument(
+        '--citation',
+        required=False,
+        metavar='STR',
+        nargs='?',
+        const='Text',
+        choices=['Text', 'BibTex', 'Endnote', 'RIS', 'DOI'],
+        type=str,
+        help='Print citation and exit. '
+             'Options: Text, BibTex, Endnote, RIS, DOI.')
 
     # Set communication verbosity
     parser.add_argument(
@@ -66,7 +79,7 @@ def read_params():
     subparser = parser.add_subparsers(
         title='commands',
         dest='command',
-        help='Use one of the following commands for different tasks.',)
+        help='Use one of the following commands for different tasks:',)
     # subparser.required = True  # http://bugs.python.org/issue9253#msg186387
 
     # CONVERT
@@ -84,6 +97,13 @@ def read_params():
         metavar='INT',
         type=int,
         help='The number of processing units to use.')
+    convert_general.add_argument(
+        '--tmp-dir',
+        required=False,
+        metavar='DIR',
+        default='tmp/',
+        type=str,
+        help='Path to temporary directory')
 
     # input
     convert_input = convert_parser.add_argument_group('Input arguments')
@@ -105,6 +125,12 @@ def read_params():
         default='out_convert/',
         type=str,
         help='Path to output directory.')
+    convert_output.add_argument(
+        '--keep-tmp-files',
+        required=False,
+        default=False,
+        action='store_true',
+        help='Keeps intermediate files from transformation steps on disk.')
 
     # mapping
     convert_alignment = convert_parser.add_argument_group(
@@ -188,7 +214,7 @@ def read_params():
         '--tmp-dir',
         required=False,
         metavar='DIR',
-        default='./',
+        default='tmp/',
         type=str,
         help='Path to temporary directory')
 
@@ -228,8 +254,9 @@ def read_params():
         type=str,
         help='Path to output directory.')
     extract_output.add_argument(
-        '--keep-temporary-files',
+        '--keep-tmp-files',
         required=False,
+        default=False,
         action='store_true',
         help='If not working from memory, '
              'keeps extracted species alignments per sample on disk.')
@@ -738,6 +765,9 @@ def samestr(input_args):
         'summarize': ['']
     }
 
+
+    ## preprocess input/output files & extensions and map to commands
+    ####
     accepted_extensions = accepted_extensions_dict[input_args['command']]
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
@@ -755,7 +785,9 @@ def samestr(input_args):
     if not isdir(input_args['output_dir']):
         makedirs(input_args['output_dir'])
 
-    elif input_args['command'] == 'convert':
+    ## process individual commands
+    ####
+    if input_args['command'] == 'convert':
         input_args['input_files'] = list_group_by_basename(
             input_args['input_files'],
             cut_name_endings=[input_args['input_extension']])
@@ -901,9 +933,81 @@ def samestr(input_args):
     elif input_args['command'] == 'extract':
         cmd_args = serialize(ref2freq, [input_args])
 
+citations = {
+'Text' :  
+"""
+Podlesny D, Arze C, Dörner E, Verma S, Dutta S, Walter J, Fricke WF. 
+Metagenomic strain detection with SameStr: 
+identification of a persisting core gut microbiota transferable by fecal transplantation. 
+Microbiome. 2022 Mar 25;10(1):53. doi: 10.1186/s40168-022-01251-w. 
+PMID: 35337386; PMCID: PMC8951724.
+""",
+'BibTex' : 
+"""
+@article{podlesny2022metagenomic,
+title={Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation},
+author={Podlesny, Daniel and Arze, Cesar and D{\"o}rner, Elisabeth and Verma, Sandeep and Dutta, Sudhir and Walter, Jens and Fricke, W Florian},
+journal={Microbiome},
+volume={10},
+number={1},
+pages={1--15},
+year={2022},
+publisher={BioMed Central}
+}
+""",
+'RIS' : 
+"""
+TY  - JOUR
+AU  - Podlesny, Daniel
+AU  - Arze, Cesar
+AU  - Dörner, Elisabeth
+AU  - Verma, Sandeep
+AU  - Dutta, Sudhir
+AU  - Walter, Jens
+AU  - Fricke, W. Florian
+PY  - 2022
+DA  - 2022/03/25
+TI  - Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
+JO  - Microbiome
+SP  - 53
+VL  - 10
+IS  - 1
+AB  - The understanding of how microbiomes assemble, function, and evolve requires metagenomic tools that can resolve microbiota compositions at the strain level. However, the identification and tracking of microbial strains in fecal metagenomes is challenging and available tools variably classify subspecies lineages, which affects their applicability to infer microbial persistence and transfer.
+SN  - 2049-2618
+UR  - https://doi.org/10.1186/s40168-022-01251-w
+DO  - 10.1186/s40168-022-01251-w
+ID  - Podlesny2022
+ER  - 
+""",
+'DOI' : 'https://doi.org/10.1186/s40168-022-01251-w',
+'Endnote' : 
+"""
+%0 Journal Article
+%T Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
+%A Podlesny, Daniel
+%A Arze, Cesar
+%A Dörner, Elisabeth
+%A Verma, Sandeep
+%A Dutta, Sudhir
+%A Walter, Jens
+%A Fricke, W Florian
+%J Microbiome
+%V 10
+%N 1
+%P 1-15
+%@ 2049-2618
+%D 2022
+%I BioMed Central          
+"""
+}
 
 if __name__ == "__main__":
     args = read_params()
+
+    if args['citation'] is not None:
+        print(citations[args['citation']])
+        exit(0)
+
     logging.basicConfig(
     level=getattr(logging, args['verbosity']),
     stream=stderr,
