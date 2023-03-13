@@ -13,7 +13,7 @@ def concatenate_gene_files(arg):
         for all species of a given sample.
     """
 
-    oosp = ooSubprocess.ooSubprocess()
+    oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
 
     LOG.debug('Gathering: %s' % arg['mp_profile'])
     mp_species = get_metaphlan_species_profile_dict(arg['mp_profile'])

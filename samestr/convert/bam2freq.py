@@ -1,4 +1,5 @@
 from os.path import isfile
+from os import remove
 import logging
 
 from glob import glob
@@ -14,7 +15,7 @@ def bam2freq(arg):
         to SNV profiles (numpy arrays).
     """
 
-    oosp = ooSubprocess.ooSubprocess()
+    oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
     if not arg:
         LOG.error('Empty input')
         return False
@@ -48,6 +49,14 @@ def bam2freq(arg):
         LOG.warning('Skipping: %s. '
                     'Directory already contained np files: %s' %
                     (arg['bname'], arg['np']))
+        
+    # clean up
+    if not arg['keep_tmp_files']:
+        remove(arg['gene_file'])
+        remove(arg['contig_map'])
+        remove(arg['kp'])
+        remove(arg['bam'])
+        remove(arg['bai'])
 
     LOG.debug('Finished: %s' % arg['np'])
     return arg

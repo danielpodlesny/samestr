@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 import argparse
 import numpy as np
 from os.path import isdir, basename

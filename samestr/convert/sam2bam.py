@@ -15,7 +15,7 @@ def sam2bam(arg):
         to binary sequence alignment format (bam).
     """
 
-    oosp = ooSubprocess.ooSubprocess()
+    oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
     output_exists = isfile(arg['bam'])
 
     if not output_exists:
