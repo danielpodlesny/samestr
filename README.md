@@ -53,7 +53,7 @@ SameStr requires python>=3.9 and has been tested with the following software ver
 - Glibc (v2.28)
 SameStr is fully compatible with MetaPhlAn database versions 3 and 4.
 
-## bioconda [pending]
+## bioconda
 SameStr can be install through conda by using the following command:
 ```
 conda install -c bioconda -c conda-forge samestr
