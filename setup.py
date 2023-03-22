@@ -5,7 +5,7 @@ with open('requirements.txt', 'rt') as requirements_file:
                     if not line.startswith('#')]
 
 setup(name='samestr',
-      version='1.2023.03',
+      version='1.2023.04',
       description='SameStr identifies shared strains between pairs of '
                   'metagenomic samples based on the similarity of SNV profiles.',
       author='Daniel Podlesny',

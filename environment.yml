@@ -13,5 +13,3 @@ dependencies:
   - muscle=3.8.1551
   - mafft=7.515
   - samtools=0.1.19
-  - pip:
-    - pysam==0.20.0
