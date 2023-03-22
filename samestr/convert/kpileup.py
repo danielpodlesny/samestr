@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import argparse
-import pysam
 import sys
-from collections import Counter
+import subprocess
+import argparse
+import re
+from collections import defaultdict
 
 parser = argparse.ArgumentParser(
     description='This script is for parsing the BAM file and look for reads overlapping with the target genes and report the pileup.')
@@ -17,7 +18,7 @@ parser.add_argument('min_mq', type=int,
 parser.add_argument('min_d', type=int, help='the minimum depth, an integer.')
 args = parser.parse_args()
 
-usage = f"""{sys.argv[0]} <sampleId> <bam file> <gene file> <minimum BQ> <minimum MQ> <minimum D>
+usage = f"""{sys.argv[0]} <sampleId> <bam file> <gene file> <minimum BQ> <minimum MQ> <minimum D> <maximum D>
 
 {args.sample_id}: sample ID
 {args.bam_file}: an aligned bam file
@@ -56,8 +57,7 @@ Allele Frequency of the Observed Allele
 
 """
 
-
-def parse_gene(gene_file):
+def parse_gene(file):
     """
     Parse the input gene file
 
@@ -68,16 +68,16 @@ def parse_gene(gene_file):
         dict: a dictionary containing the gene name as key and the contig, start, end, strand, and sequence as values
     """
     data = {}
-    with open(gene_file) as f:
+    with open(file, "r") as f:
         for line in f:
-            fields = line.strip().split('\t')
-            gene = fields[1]
-            data[gene] = {
-                'contig': fields[0],
-                'begin': int(fields[2]),
-                'end': int(fields[3]),
-                'strand': fields[4],
-                'seq': fields[5],
+            line = line.strip()
+            contig_id, gene_id, begin, end, strand, seq = line.split("\t")
+            data[gene_id] = {
+                'contig': contig_id,
+                'begin': int(begin),
+                'end': int(end),
+                'strand': strand,
+                'seq': seq
             }
     return data
 
@@ -92,28 +92,55 @@ def parse_bases(genes):
     Returns:
         dict: a dictionary indexed by contigs and containing the gene name, reference nucleotide, and codon position as values
     """
-    nuc = {}
-    for gene, values in genes.items():
-        begin = values['begin']
-        end = values['end']
-        c = values['contig']
-        strand = values['strand']
-        seq = values['seq']
+    nuc = defaultdict(dict)
+    for g, gene_data in genes.items():
+        begin = gene_data['begin']
+        end = gene_data['end']
+        c = gene_data['contig']
+        strand = gene_data['strand']
+        temp = list(gene_data['seq'])
+
         for i in range(begin, end + 1):
             codon_pos = (i - begin + 1) % 3
             if strand == '-' and codon_pos != 2:
                 codon_pos = 1 if codon_pos == 0 else 0
             codon_pos = 3 if codon_pos == 0 else codon_pos
-            nuc[c, i] = (gene, seq[i - begin], codon_pos)
+            nuc[c][i] = f"{g}\t{temp[i-begin]}\t{codon_pos}"
+
     return nuc
 
-
-def pileup(sample_id, bam_file, gene_file, min_bq, min_mq, min_d):
+def decode_cigar(cigar):
     """
-    Parse the BAM file and look for reads overlapping with the target genes and report the pileup.
-    Reads must pass the minimum MQ threshold.
-    For each position, an allele must have a depth >= min_d.
-    The frequency of each allele is calculated after filtering.
+    Decode the cigar string
+
+    Args:
+        cigar (str): the cigar string
+
+    Returns:
+        str: the decoded cigar string
+    """
+    cigar_parts = re.findall(r'(\d+)([MIDNSHP])', cigar)
+    new_string = ''.join(c * int(n) for n, c in cigar_parts)
+    return new_string
+
+
+def convert_qual(qual_string):
+    """
+    Convert the quality string to a list of quality scores
+
+    Args:
+        qual_string (str): the quality string
+
+    Returns:
+        list: a list of quality scores
+    """
+    scores = [ord(q) - 33 for q in qual_string]
+    return scores
+
+
+def pileup(sample_id, bam_file, gene_file, min_bq, min_mq, min_depth):
+    """
+    Parse the BAM file and look for reads overlapping with the target genes and report the pileup
 
     Args:
         sample_id (str): the sample ID
@@ -121,66 +148,96 @@ def pileup(sample_id, bam_file, gene_file, min_bq, min_mq, min_d):
         gene_file (str): the gene file name
         min_bq (int): the minimum base quality score of a sequenced base
         min_mq (int): the minimum MQ mapping score of the aligned reads
-        min_d (int): the minimum depth, an integer.
+        min_depth (int): the minimum depth, an integer.
 
     Returns:
         None
     """
     genes = parse_gene(gene_file)
-    for key in genes.keys():
-        print(key + '===')
     bases = parse_bases(genes)
 
-    print('Sample\tContig\tPosition\tGene\tRef\tCodon\tConsensus\tAllele\tCounts\tFrequency')
-    samfile = pysam.AlignmentFile(bam_file, "rb")
-    for genename, gene in genes.items():
-        for pileupcolumn in samfile.pileup(
-                contig=gene['contig'],
-                start=gene['begin'],
-                stop=gene['end'],
-                min_base_quality=min_bq,
-                min_mapping_quality=min_mq,
-                truncate=True, max_depth=100000):
-            if pileupcolumn.n < min_d:
-                continue
-            # 1 for the reference base
-            ref_base = bases[genename, pileupcolumn.pos + 1][1]
-            # 2 for the codon position
-            codon = bases[genename, pileupcolumn.pos + 1][2]
-            counts = Counter()
-            for pileupread in pileupcolumn.pileups:
-                if not pileupread.is_del and not pileupread.is_refskip:
-                    query_base = pileupread.alignment.query_sequence[pileupread.query_position]
-                    counts[query_base] += 1
+    f_table = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-            # each base must have a depth >= min_d
-            counts = Counter({k: v for k, v in counts.items() if v >= min_d})
-            total_count = sum(counts.values())
-            if total_count < min_d:
+    with subprocess.Popen(["samtools", "view", bam_file], stdout=subprocess.PIPE, universal_newlines=True) as bam_process:
+        for line in bam_process.stdout:
+            qname, flag, rname, begin, mapq, cigar, mrnm, mpos, isize, seq, qual, *info = line.strip().split('\t')
+
+            if rname == "*" or int(mapq) < min_mq or rname not in bases:
                 continue
-            consensus = max(counts, key=counts.get)
-            for base, count in counts.items():
-                freq = int(count/total_count*100)
-                print(
-                    f"{sample_id}\t{genename}\t{pileupcolumn.pos+1}\t{gene['contig']}\t{ref_base}\t{codon}\t{consensus}\t{base}\t{count}\t{freq}")
-    samfile.close()
+
+            begin = int(begin)
+            end = begin + len(seq) - 1
+            qual_scores = convert_qual(qual)
+
+            s = decode_cigar(cigar)
+            b = list(seq)
+            ci = list(s)
+
+            new = []
+            read_i = 0
+
+            for cigar_i in range(len(ci)):
+                base = "-"
+                if ci[cigar_i] == "D":
+                    base = "-"
+                elif ci[cigar_i] == "H":
+                    continue
+                elif ci[cigar_i] in ["I", "S"]:
+                    read_i += 1
+                    continue
+                elif qual_scores[read_i] < min_bq:
+                    base = "-"
+                    read_i += 1
+                else:
+                    base = b[read_i]
+                    read_i += 1
+
+                new.append(base)
+
+            b = new
+            for i in range(begin, begin + len(b)):
+                nuc = b[i - begin]
+
+                if bases[rname].get(i):
+                    if nuc != "-":
+                        f_table[rname][i][nuc] += 1
+
+    for c in f_table:
+        print(f"{c}===")
+    print("Sample\tContig\tPosition\tGene\tRef\tCodon\tConsensus\tAllele\tCounts\tFrequency")
+
+    for c in f_table:
+        for pos in sorted(f_table[c]):
+            total = 0
+            major = ""
+
+            for nuc in sorted(f_table[c][pos]):
+                counts = f_table[c][pos][nuc]
+                if counts <= min_depth:
+                    continue
+                total += counts
+                if major == "":
+                    major = nuc
+                elif f_table[c][pos][major] < counts:
+                    major = nuc
+
+            for nuc in sorted(f_table[c][pos]):
+                counts = f_table[c][pos][nuc]
+                if counts < min_depth:
+                    continue
+                percent = 100 * counts / total
+
+                print(f"{sample_id}\t{c}\t{pos}\t{bases[c][pos]}\t{major}\t{nuc}\t{counts}\t{percent:.0f}")
 
 
 def main():
-    if len(sys.argv) != 7:
-        print(
-            f"Usage: {sys.argv[0]} <sampleId> <bam file> <gene file> <minimum BQ> <minimum MQ> <minimum D>")
-        sys.exit(1)
 
-    sample_id = sys.argv[1]
-    bam_file = sys.argv[2]
-    gene_file = sys.argv[3]
-    min_bq = int(sys.argv[4])
-    min_mq = int(sys.argv[5])
-    min_d = int(sys.argv[6])
-
-    pileup(sample_id, bam_file, gene_file, min_bq, min_mq, min_d)
-
+    pileup(args.sample_id, 
+           args.bam_file, 
+           args.gene_file, 
+           args.min_bq, 
+           args.min_mq, 
+           args.min_d)
 
 if __name__ == "__main__":
     main()
