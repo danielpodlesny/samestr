@@ -213,7 +213,7 @@ def pileup(sample_id, bam_file, gene_file, min_bq, min_mq, min_depth):
 
             for nuc in sorted(f_table[c][pos]):
                 counts = f_table[c][pos][nuc]
-                if counts <= min_depth:
+                if counts < min_depth:
                     continue
                 total += counts
                 if major == "":
