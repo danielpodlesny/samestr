@@ -2,7 +2,7 @@ from os.path import isfile
 import logging
 import numpy as np
 
-from samestr.utils import load_numpy_file
+from samestr.utils.utilities import load_numpy_file
 
 LOG = logging.getLogger(__name__)
 

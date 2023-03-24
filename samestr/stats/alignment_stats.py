@@ -7,7 +7,7 @@ import pandas as pd
 from scipy import stats
 
 from samestr.filter import consensus
-from samestr.utils import load_numpy_file
+from samestr.utils.utilities import load_numpy_file
 
 LOG = logging.getLogger(__name__)
 
