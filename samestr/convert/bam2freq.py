@@ -35,8 +35,10 @@ def bam2freq(arg):
             out_fn=arg['kp'],
             verbose=False)
 
-    if not glob('%s/*.np.cPickle' % arg['np']) or not glob(
-            '%s/*.npy' % arg['np']):
+    if not glob('%s/*.np.cPickle' % arg['np']) or \
+       not glob('%s/*.npy' % arg['np']) or \
+       not glob('%s/*.npz' % arg['np']) or \
+       not glob('%s/*.npy.gz' % arg['np']):
         LOG.debug('Converting: %s' % arg['kp'])
         oosp.ex('kp2np.py',
                 args=[

@@ -101,8 +101,8 @@ for genome in cmap:
         y[genome][0, beg:end, :] = x[contig]
         beg = end
 
-    np_filepath = '%s/%s.%s.npy' % (args.output_dir, genome, args.sample)
-    np.save(np_filepath, y[genome], allow_pickle=True)
+    np_filepath = '%s/%s.%s' % (args.output_dir, genome, args.sample)
+    np.savez_compressed(np_filepath, y[genome], allow_pickle=True)
 
     species = y[genome]
     cov = species.sum(axis=2)

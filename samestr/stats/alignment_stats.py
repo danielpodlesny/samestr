@@ -5,7 +5,9 @@ import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
+
 from samestr.filter import consensus
+from samestr.utils import load_numpy_file
 
 LOG = logging.getLogger(__name__)
 
@@ -32,7 +34,7 @@ def aln2stats(args):
              (args['species'], len(samples)))
 
     # load freqs
-    x = np.load(args['input_file'], allow_pickle=True)
+    x = load_numpy_file(args['input_file'])
     total_species_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
 

@@ -4,6 +4,8 @@ import logging
 import warnings
 import numpy as np
 
+from samestr.utils import load_numpy_file
+
 LOG = logging.getLogger(__name__)
 
 
@@ -104,9 +106,9 @@ def species_min_samples(args, n_samples):
 def filter_freqs(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], basename(args['input_file']))
-    if exists(output_name):
-        LOG.info('Skipping %s. Output file exists.' % args['species'])
+    output_name = join(args['output_dir'], args['species'])
+    if exists(output_name + '.npz'):
+        LOG.info('Skipping %s. Output file exists.' % args['species'] + '.npz')
         return True
 
     # load sample order
@@ -123,7 +125,7 @@ def filter_freqs(args):
         return False
 
     # load freqs
-    x = np.load(args['input_file'], allow_pickle=True)
+    x = load_numpy_file(args['input_file'])
     total_species_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
     removed_pos = set()
@@ -316,4 +318,4 @@ def filter_freqs(args):
         file.write(txt)
 
     # Save Array to file
-    np.save(output_name, x, allow_pickle=True)
+    np.savez_compressed(output_name, x, allow_pickle=True)

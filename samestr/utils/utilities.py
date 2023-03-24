@@ -1,6 +1,7 @@
 from datetime import datetime
 from os.path import basename
-
+import numpy as np
+import gzip
 
 def log_time(method):
     """
@@ -104,3 +105,15 @@ def list_group_by_basename(names, cut_name_endings):
         else:
             base_names[cut_name] = [input_file]
     return base_names
+
+def load_numpy_file(input_file):
+    """
+        Load numpy file
+    """
+    if input_file.endswith('.npz'):
+        return np.load(input_file, allow_pickle=True)['arr_0']
+    elif input_file.endswith('.npy.gz'):
+        with gzip.open(input_file, 'rb') as f:
+            return np.load(f, allow_pickle=True)
+    else:
+        return np.load(input_file, allow_pickle=True)

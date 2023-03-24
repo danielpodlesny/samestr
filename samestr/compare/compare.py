@@ -6,6 +6,7 @@ import numpy as np
 from Bio import Seq, SeqRecord, AlignIO
 from Bio.Align import MultipleSeqAlignment
 
+from samestr.utils import load_numpy_file
 from samestr.filter import consensus
 
 LOG = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def compare(args):
              (args['species'], len(samples)))
 
     # load freqs
-    x = np.load(args['input_file'], allow_pickle=True)
+    x = load_numpy_file(args['input_file'])
     np.seterr(divide='ignore', invalid='ignore')
 
     # conversion arrays

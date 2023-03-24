@@ -309,7 +309,7 @@ def read_params():
         metavar='NPY',
         default=[],
         type=str,
-        help='Path to input SNV profiles.')
+        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
 
     # output
     merge_output = merge_parser.add_argument_group('Output arguments')
@@ -358,7 +358,7 @@ def read_params():
         metavar='NPY',
         default=[],
         type=str,
-        help='Path to input SNV Profiles.')
+        help='Path to input SNV Profiles. Should have .npy, .npz or .npy.gz extension.')
     filter_input.add_argument(
         '--input-names',
         required=True,
@@ -560,7 +560,7 @@ def read_params():
         metavar='NPY',
         default=[],
         type=str,
-        help='Path to input SNV Profiles.')
+        help='Path to input SNV Profiles. Should have .npy, .npz or .npy.gz extension.')
     compare_input.add_argument(
         '--input-names',
         required=True,
@@ -683,7 +683,7 @@ def read_params():
         metavar='NPY',
         default=[],
         type=str,
-        help='Path to input SNV profiles.')
+        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
     stats_input.add_argument(
         '--input-names',
         required=True,
@@ -758,10 +758,10 @@ def samestr(input_args):
         'convert': ['.sam', '.sam.bz2'],
         'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
         'extract': ['.fasta', '.fa', '.fna', '.fasta.gz', '.fa.gz', '.fna.gz'],
-        'merge': ['.npy', '.npy'],
-        'filter': ['.npy'],
-        'stats': ['.npy'],
-        'compare': ['.npy'],
+        'merge': ['.npy', '.npy.gz', '.npz'],
+        'filter': ['.npy', '.npy.gz', '.npz'],
+        'stats': ['.npy', '.npy.gz', '.npz'],
+        'compare': ['.npy', '.npy.gz', '.npz'],
         'summarize': ['']
     }
 

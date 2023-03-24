@@ -7,7 +7,7 @@ We developed **SameStr** as a bioinformatic tool for the identification of share
 
 SameStr's shared strains are specific to related but not unrelated sample pairs and can therefore be used to track strains across biological samples. As demonstrated with strain co-occurrence networks, this enables further applications such as for the quality screening of mislabelled data and possible contamination, or personal identification which raises further questions regarding study participant privacy. 
 
-SameStr has been updated to python 3.9 and is compatible with MetaPhlAn database versions 3 and 4. While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
+SameStr has been updated to python 3.9 and is compatible with MetaPhlAn database versions 3 and 4. While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format, `.npy`, `.npz`, `.np.gz` are recognized throughout the script) can be used for strain composition modelling with probabilistic algorithms.
 
 ## Citation
 Podlesny, D., Arze, C., Dörner, E., Verma, S., Dutta, S., Walter, J., & Fricke, W. F. (2022). Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation. Microbiome, 10(1), 53. https://doi.org/10.1186/s40168-022-01251-w
@@ -163,7 +163,7 @@ samestr convert \
 --output-dir out_convert/
 ```
 ### Output Format
-Per Species:
+This step converts the alignment of MetaPhlAn markers to a nucleotide variant profile. The outputs are per-species numpy files (`.npy`, `.npz`, `.np.gz` are recognized throughout the script) with the following format:
 | Nucleotide | Marker 1 (Pos 1) | Marker 1 (Pos n) | Marker 2 (Pos 1) | Marker 2 (Pos n)| Marker n (Pos n) |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | A | 0 | 6 | 0 | 0 | .. |

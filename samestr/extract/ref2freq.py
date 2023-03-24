@@ -440,14 +440,14 @@ def seqs2freqs(args, seqs, marker_pos):
             return '.'.join(name.split('.')[:-1])
         return name
 
-    # save freqs array to file .npy
+    # save freqs array to file .npz
     output_base = args['output_dir'] + '/' + args['species']
     for reference in list(freqs.keys()):
         if reference.endswith('.markers'):
             continue
 
-        fname = output_base + '.%s.npy' % _format_reference_name(reference)
-        np.save(fname, freqs[reference], allow_pickle=True)
+        fname = output_base + '.%s' % _format_reference_name(reference)
+        np.savez_compressed(fname, freqs[reference], allow_pickle=True)
 
     # convert seqs to Bio SeqIO alignment object
     seqs_list = []

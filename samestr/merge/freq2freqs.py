@@ -2,6 +2,8 @@ from os.path import isfile
 import logging
 import numpy as np
 
+from samestr.utils import load_numpy_file
+
 LOG = logging.getLogger(__name__)
 
 
@@ -29,7 +31,7 @@ def freq2freqs(args):
 
     # skip if species file exists
     output_file = '%s/%s' % (args['output_dir'], args['species'])
-    if isfile('%s.npy' % output_file):
+    if isfile('%s.npz' % output_file):
         LOG.info('Skipping: %s. Output file existed.' % args['species'])
         return True
 
@@ -38,7 +40,7 @@ def freq2freqs(args):
 
         # initialize species freqs arrays
         if species_freqs is None:
-            species_freqs = np.load(file_path, allow_pickle=True)
+            species_freqs = load_numpy_file(file_path)
             if isinstance(sample, list):
                 samples += sample
             else:
@@ -53,7 +55,7 @@ def freq2freqs(args):
         # if more than one sample, add sample freq to freqs
         if len(args['input_files']) > 1:
             species_freqs, success = merge_freqs(
-                species_freqs, np.load(file_path, allow_pickle=True), sample)
+                species_freqs, load_numpy_file(file_path), sample)
             if success:
                 if isinstance(sample, list):
                     samples += sample
@@ -61,7 +63,7 @@ def freq2freqs(args):
                     samples.append(sample)
 
     # per species, save freqs and names to file
-    np.save(output_file, species_freqs, allow_pickle=True)
+    np.savez_compressed(output_file + '.npz', species_freqs, allow_pickle=True)
 
     with open(output_file + '.names.txt', 'w') as file:
         file.write('\n'.join(samples) + '\n')
