@@ -97,7 +97,7 @@ samestr db \
 --output-dir marker_db/
 ```
 
-You might want to combine the two marker files that have been published with the recent versions of MetaPhlAn to generate a database for all species. This can be done with the following commands:
+You might want to combine the two marker files that have been published with the recent versions of MetaPhlAn to generate a database for all species. This is required for `mpa_vJan21_CHOCOPhlAnSGB_202103_SGB` but not `mpa_vOct22_CHOCOPhlAnSGB_202212` and can be done with the following commands:
 ```
 # obtain MetaPhlAn db from Segata Lab's FTP server (as of writing)
 wget http://cmprod1.cibio.unitn.it/biobakery4/metaphlan_databases/mpa_vJan21_CHOCOPhlAnSGB_202103.tar
