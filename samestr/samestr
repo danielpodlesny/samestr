@@ -8,7 +8,7 @@ from os import environ, makedirs
 import logging
 import logging.config
 
-from samestr.utils.utilities import list_group_by_basename
+from samestr.utils.utilities import list_group_by_basename, collect_input_files
 from samestr.utils.ooSubprocess import serialize, parallelize_async
 from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
     set_output_structure
@@ -51,7 +51,7 @@ def samestr(input_args):
         input_args['input_extension'] = get_uniform_extension(
             [input_args['mpa_markers']], accepted_extensions)
 
-    elif input_args['command'] != 'summarize':
+    elif input_args['command'] not in ('summarize', 'convert'):
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
 
@@ -66,9 +66,15 @@ def samestr(input_args):
     ## process individual commands
     ####
     if input_args['command'] == 'convert':
-        input_args['input_files'] = list_group_by_basename(
-            input_args['input_files'],
-            cut_name_endings=[input_args['input_extension']])
+        input_args['input_files'], input_args['input_extension'] = collect_input_files(
+            input_args['input_dir'],
+            accepted_extensions,
+            recursive=input_args["recursive_input"]
+        )
+        
+        # input_args['input_files'] = list_group_by_basename(
+        #     input_args['input_files'],
+        #     cut_name_endings=[input_args['input_extension']])
 
         # Spread args over files/file-pairs, Set output names and check/make their dir
         input_args['input_sequence_type'] = 'single'
