@@ -2,7 +2,7 @@ import argparse as ap
 
 from sys import argv, stderr
 
-from samestr import __author__, __version__
+from . import __author__, __version__
 
 def read_params():
     """Read command line arguments and return them as a dictionary."""
