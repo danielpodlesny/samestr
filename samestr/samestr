@@ -22,7 +22,7 @@ from samestr.compare import compare
 from samestr.summarize import summarize
 from samestr.db import mp2db
 
-from parse_args import read_params
+from .parse_args import read_params
 
 
 SAMESTR_DIR = dirname(realpath(__file__))
