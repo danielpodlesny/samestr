@@ -39,7 +39,7 @@ class TaxTree:
     def __init__(self, mpa_pkl):
         self.root = TaxClade("root")
         self.all_clades = {}
-        clades_txt = ((l.strip().split('|')[:-1])
+        clades_txt = ((l.strip().split('|'))
                       for l, n in list(mpa_pkl['taxonomy'].items()))
         for clade in clades_txt:
             father = self.root

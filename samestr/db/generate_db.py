@@ -5,15 +5,17 @@ from Bio import SeqIO
 
 import logging
 
-from samestr.db import TaxClade, TaxTree
+# TODO: do we still need this?
+# from samestr.db import TaxClade, TaxTree
 
+# TODO: refactor species/clade
 
 LOG = logging.getLogger(__name__)
 
 
 def mp2db(input_args):
     """
-    Function expands and generates a database of species markers from MetaPhlAn database
+    Function expands and generates a database of clade markers from MetaPhlAn database
     that is required for SameStr.
     """
 
@@ -27,51 +29,35 @@ def mp2db(input_args):
             SeqIO.parse(input_args['mpa_markers'], 'fasta'))
 
     # set species markers
-    all_species = set()
+    all_clades = set()
     all_markers = {}
     n_markers = 0
 
-    # first, generate taxonomy
-    tree = TaxTree(mpa_pkl)
-
     for marker in mpa_pkl['markers']:
 
-        # retrieve species names using last clade that is not strain (sp. or higher)
-        lineage = mpa_pkl['markers'][marker]['taxon'].split('|t__')[0]
-        clade = lineage.split('|')[-1]
+        # retrieve clade names
+        clade = mpa_pkl['markers'][marker]['clade']
+        clade_name = clade.split('__')[1]
 
-        if clade.startswith('s__'):
-            species = clade.replace('s__', '')
-        else:
-            # mp marker tax. is not always the lowest available e.g.:
-            # k__Bacteria|p__Actinobacteria|c__Actinobacteria|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Gardnerella
-            # but only species is s__Gardnerella_vaginalis
-            node = tree.get_lineage(lineage)
-            node_names = [n.name for n in node.get_terminals()]
-            if len(node_names) == 1 and node_names[0].startswith('s__'):
-                species = node_names[0].replace('s__', '')
-            else:
-                continue
-
-        all_species.add(species)
+        all_clades.add(clade_name)
         n_markers += 1
 
-        # get only selected species
+        # get only selected clades
         if 'species' in input_args and input_args['species'] is not None:
-            if species not in input_args['species']:
+            if clade_name not in input_args['species']:
                 continue
 
-        if species not in all_markers:
-            all_markers[species] = set()
-        all_markers[species].add(marker)
+        if clade_name not in all_markers:
+            all_markers[clade_name] = set()
+        all_markers[clade_name].add(marker)
 
     LOG.debug('MetaPhlAn db contains %s species, %s markers' %
-              (len(all_species), n_markers))
+              (len(all_clades), n_markers))
 
     # report selected species
     if 'species' in input_args and input_args['species'] is not None:
         species_intersect = set(
-            input_args['species']).intersection(all_species)
+            input_args['species']).intersection(all_clades)
         species_diff = set(
             input_args['species']).difference(species_intersect)
 
@@ -80,21 +66,21 @@ def mp2db(input_args):
         if len(species_intersect) < len(input_args['species']):
             LOG.debug('Species not found in the database: %s' %
                       ', '.join(species_diff))
-        all_species = species_intersect
+        all_clades = species_intersect
 
-    for species in all_species:
+    for clade_name in all_clades:
 
         # set output names
-        output_base = join(input_args['output_dir'], species)
+        output_base = join(input_args['output_dir'], clade_name)
         marker_filename = output_base + '.markers.fa'
         pos_filename = output_base + '.positions.txt'
         gene_filename = output_base + '.gene_file.txt'
         cmap_filename = output_base + '.contig_map.txt'
 
         # check marker count
-        species_markers = sorted(all_markers[species])
+        species_markers = sorted(all_markers[clade_name])
         n_markers = len(species_markers)
-        LOG.debug('Markers found for %s: %s' % (species, n_markers))
+        LOG.debug('Markers found for %s: %s' % (clade_name, n_markers))
         if not n_markers:
             continue
 
@@ -130,7 +116,7 @@ def mp2db(input_args):
 
         if remove_markers:
             LOG.debug('Dropping markers for %s: %s' %
-                      (species, len(remove_markers)))
+                      (clade_name, len(remove_markers)))
             species_markers = [
                 m for m in species_markers if m not in remove_markers]
 
@@ -141,5 +127,5 @@ def mp2db(input_args):
             pos_file.write('\n'.join(pos_data) + '\n')
             gene_file.write('\n'.join(gene_data) + '\n')
             cmap_file.write('\n'.join(
-                ['\t'.join([species, m]) for m in species_markers]) + '\n')
+                ['\t'.join([clade_name, m]) for m in species_markers]) + '\n')
     return input_args
