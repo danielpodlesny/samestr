@@ -131,3 +131,25 @@ def get_uniform_extension(files, accepted_extensions):
         exit(1)
 
     return input_extension
+
+
+def clade_path(name):
+    # Initialize segments list
+    segments = []
+    # Define the cut positions
+    cuts = [9, 12, 15]
+    # Track the previous cut position
+    prev_cut = 0
+    # Add segments at specified cut positions
+    for cut in cuts:
+        if len(name) > prev_cut:
+            segment = name[prev_cut:cut] if len(name) >= cut else name[prev_cut:]
+            segments.append(segment)
+            prev_cut = cut
+        else:
+            break
+    # Add name as file basis
+    segments.append(name)
+    # Combine the segments to form the path
+    pseudo_path = '/'.join(segments)
+    return pseudo_path
