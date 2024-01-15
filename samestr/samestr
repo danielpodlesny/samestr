@@ -22,7 +22,7 @@ from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
 from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import mp2db
+from samestr.db import generate_db
 
 SAMESTR_DIR = dirname(realpath(__file__))
 CONVERT_DIR = SAMESTR_DIR + '/convert/'
@@ -806,7 +806,7 @@ def samestr(input_args):
     elif input_args['command'] == 'db':
 
         # expand and generate db from metaphlan markers/pkl files
-        mp2db(input_args)
+        generate_db(input_args)
 
     elif input_args['command'] == 'merge':
 
