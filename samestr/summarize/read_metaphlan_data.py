@@ -110,13 +110,12 @@ def separate_metaphlan_taxonomy(df, clade_column='clade_name', all_levels=False)
     taxonomy_df = df[clade_column].str.split('\\|', expand=True)
 
     # name the columns with the taxonomic levels
-    # and remove taxonomic prefixes from each column
     for idx in taxonomy_df.columns:
         for tax_level, tdata in tax_levels.items():
             if tdata['index'] == idx:
                 taxonomy_df.rename(columns={idx: tax_level}, inplace=True)
-                taxonomy_df[tax_level] = taxonomy_df[tax_level].str.replace(
-                    tdata['prefix'], '')
+                # CHANGE: stop removing the prefix
+                # taxonomy_df[tax_level] = taxonomy_df[tax_level].str.replace(tdata['prefix'], '')
     if not all_levels:
         # keep only the lowest taxonomic level
         taxonomy_df = taxonomy_df.iloc[:, -1:]
