@@ -11,8 +11,7 @@ import logging
 # from samestr.db import TaxClade, TaxTree
 from samestr.utils import clade_path
 
-# TODO: refactor species/clade
-
+# TODO: rename species/clade
 LOG = logging.getLogger(__name__)    
 
 
@@ -37,7 +36,7 @@ def generate_db(input_args):
 
     # get markers mapping   
     # TODO fix to real var
-    db = 'MetaPhlAn'
+    db = 'mOTUs'
     if db == 'MetaPhlAn':
         marker_pickle = pickle.load(bz2.BZ2File(input_args['mpa_pkl']))
     elif db == 'mOTUs':
