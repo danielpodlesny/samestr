@@ -43,7 +43,7 @@ def read_metaphlan_profile(file_fn):
         col_names = ['clade_name', 'NCBI_tax_id', 'relative_abundance']
 
     # Parse the data
-    data = [line.strip().split('\t#')[0].split('\t') for line in data_lines]
+    data = [line.strip().split('\t#')[0].split('\t')[:3] for line in data_lines]
     df = pd.DataFrame(data, columns=col_names)
     df['file_fn'] = basename(file_fn)
 
