@@ -7,6 +7,7 @@ import logging
 
 # TODO: do we still need this?
 # from samestr.db import TaxClade, TaxTree
+from samestr.utils import clade_path
 
 # TODO: refactor species/clade
 
@@ -37,19 +38,17 @@ def mp2db(input_args):
 
         # retrieve clade names
         clade = mpa_pkl['markers'][marker]['clade']
-        clade_name = clade.split('__')[1]
-
-        all_clades.add(clade_name)
+        all_clades.add(clade)
         n_markers += 1
 
         # get only selected clades
         if 'species' in input_args and input_args['species'] is not None:
-            if clade_name not in input_args['species']:
+            if clade not in input_args['species']:
                 continue
 
-        if clade_name not in all_markers:
-            all_markers[clade_name] = set()
-        all_markers[clade_name].add(marker)
+        if clade not in all_markers:
+            all_markers[clade] = set()
+        all_markers[clade].add(marker)
 
     LOG.debug('MetaPhlAn db contains %s species, %s markers' %
               (len(all_clades), n_markers))
@@ -68,19 +67,19 @@ def mp2db(input_args):
                       ', '.join(species_diff))
         all_clades = species_intersect
 
-    for clade_name in all_clades:
+    for clade in all_clades:
 
         # set output names
-        output_base = join(input_args['output_dir'], clade_name)
+        output_base = join(input_args['output_dir'], '/', clade_path(clade))
         marker_filename = output_base + '.markers.fa'
         pos_filename = output_base + '.positions.txt'
         gene_filename = output_base + '.gene_file.txt'
         cmap_filename = output_base + '.contig_map.txt'
 
         # check marker count
-        species_markers = sorted(all_markers[clade_name])
+        species_markers = sorted(all_markers[clade])
         n_markers = len(species_markers)
-        LOG.debug('Markers found for %s: %s' % (clade_name, n_markers))
+        LOG.debug('Markers found for %s: %s' % (clade, n_markers))
         if not n_markers:
             continue
 
@@ -116,7 +115,7 @@ def mp2db(input_args):
 
         if remove_markers:
             LOG.debug('Dropping markers for %s: %s' %
-                      (clade_name, len(remove_markers)))
+                      (clade, len(remove_markers)))
             species_markers = [
                 m for m in species_markers if m not in remove_markers]
 
@@ -127,5 +126,5 @@ def mp2db(input_args):
             pos_file.write('\n'.join(pos_data) + '\n')
             gene_file.write('\n'.join(gene_data) + '\n')
             cmap_file.write('\n'.join(
-                ['\t'.join([clade_name, m]) for m in species_markers]) + '\n')
+                ['\t'.join([clade, m]) for m in species_markers]) + '\n')
     return input_args
