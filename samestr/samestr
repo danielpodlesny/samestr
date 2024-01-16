@@ -4,9 +4,10 @@
 
 from sys import stderr
 from os.path import basename, dirname, realpath, isdir, isfile
-from os import environ, makedirs
+from os import environ
 import logging
 import logging.config
+import pathlib
 
 from samestr.utils.utilities import list_group_by_basename, collect_input_files
 from samestr.utils.ooSubprocess import serialize, parallelize_async
@@ -62,7 +63,7 @@ def samestr(input_args):
 
     # check make output dir
     if not isdir(input_args['output_dir']):
-        makedirs(input_args['output_dir'])
+        pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
     ## process individual commands
     ####
