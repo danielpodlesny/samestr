@@ -9,7 +9,7 @@ import logging
 import logging.config
 import pathlib
 
-from samestr.utils.utilities import list_group_by_basename, collect_input_files
+from samestr.utils.utilities import collect_input_files
 from samestr.utils.ooSubprocess import serialize, parallelize_async
 from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
     set_output_structure
@@ -65,6 +65,8 @@ def samestr(input_args):
     if not isdir(input_args['output_dir']):
         pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
+    input_species = input_args.get("species")
+
     ## process individual commands
     ####
     if input_args['command'] == 'convert':
@@ -74,10 +76,6 @@ def samestr(input_args):
             recursive=input_args["recursive_input"]
         )
         
-        # input_args['input_files'] = list_group_by_basename(
-        #     input_args['input_files'],
-        #     cut_name_endings=[input_args['input_extension']])
-
         # Spread args over files/file-pairs, Set output names and check/make their dir
         input_args['input_sequence_type'] = 'single'
         cmd_args = spread_args_by_input_files(input_args)
@@ -100,62 +98,61 @@ def samestr(input_args):
 
         # group input files by species
         for file_path in input_args['input_files']:
-            file = basename(file_path)
-            species = file.split('.')[0]
+            fn = basename(file_path)
+            species = fn.split('.')[0]
 
             # append list if file has been merged before
             sample_names = file_path.replace(
-                input_args['input_extension'], '.names.txt')
+                input_args['input_extension'], '.names.txt'
+            )
             if isfile(sample_names):
                 with open(sample_names, 'r', encoding="utf8") as s_n:
                     sample = s_n.read().strip().split('\n')
             else:
-                sample = file.split(input_args['input_extension'])[
-                    0].replace(f'{species}.', '')
+                sample = fn.split(
+                    input_args['input_extension']
+                )[0].replace(f'{species}.', '')
 
             # skip if not in selected species
-            if input_args['species']:
-                if species not in input_args['species']:
-                    continue
+            if input_species is not None and species not in input_species:
+                continue
 
-            if species not in species_file_dict:
-                species_file_dict[species] = [[sample, file_path]]
-            else:
-                species_file_dict[species] += [[sample, file_path]]
+            species_file_dict.setdefault(species, []).append([sample, file_path])            
 
-        cmd_args = []
-        for idx, species in enumerate(species_file_dict.keys()):
-            cmd_args.append({})
-            cmd_args[idx]['species'] = species
-            cmd_args[idx]['input_files'] = species_file_dict[species]
-            cmd_args[idx]['output_dir'] = input_args['output_dir']
+        cmd_args = [
+            {
+                "species": species,
+                "input_files": files,
+                "output_dir": input_args['output_dir'],
+            }
+            for species, files in species.items()
+        ]
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] in ['filter', 'stats', 'compare']:
 
         # For each species: group freqs with resp names
-        freqs = {}
-        for i_f in input_args['input_files']:
-            species = basename(i_f).split(input_args['input_extension'])[0]
-            freqs[species] = [i_f]
+        freqs = {
+            basename(fn).split(input_args['input_extension'])[0]: [fn]
+            for fn in input_args['input_files']
+        }
 
-        for i_n in input_args['input_names']:
-            species = basename(i_n).split('.names.txt')[0]
+        for name in input_args['input_names']:
+            species = basename(name).split('.names.txt')[0]
             if species not in freqs:
                 LOG.warning('Skipping %s. Found name file '
                             'but no SNV profile.', species)
             else:
-                freqs[species] += [i_n]
+                freqs[species].append(name)
 
         for species, freq in list(freqs.items()):
             if len(freq) != 2:
                 LOG.warning('Skipping %s. Found SNV profile '
                             'but no name file.', species)
                 freqs.pop(species)
-            if 'species' in input_args and input_args['species'] is not None:
-                if species not in input_args['species']:
-                    freqs.pop(species)
+            elif input_species is not None and species not in input_species:
+                freqs.pop(species)
 
         # attach sample selection file
         if 'samples_select' in input_args:
@@ -165,7 +162,7 @@ def samestr(input_args):
                     LOG.warning('Skipping %s. Found selection file '
                                 'but no SNV profile.', species)
                 else:
-                    freqs[species] += [i_s]
+                    freqs[species].append(i_s)
 
         for species, freq in list(freqs.items()):
             if len(freq) > 3:
@@ -176,25 +173,31 @@ def samestr(input_args):
                 freq += [None]
             elif len(freq) != 3:
                 LOG.error('Unexpected number of files (%s): %s.', len(freq), species)
-                exit(0)
+                exit(0)  # <-- this is not really a zero-exit then, is it?
 
         # Spread args over species
         cmd_args = []
-        for idx, (species, (input_file, input_name,
-                            input_select)) in enumerate(freqs.items()):
-            cmd_args.append({})
-            cmd_args[idx]['input_file'] = input_file
-            cmd_args[idx]['input_name'] = input_name
-            cmd_args[idx]['input_select'] = input_select
-            cmd_args[idx]['species'] = species
+        ignore_args = {'input_files', 'input_names', 'input_select', 'species'}
 
-            for arg in input_args:
-                if arg in [
-                    'input_files', 'input_names', 'input_select', 'species'
-                ]:
-                    continue
-                cmd_args[idx][arg] = input_args[arg]
+        arg_template_d = {
+            arg: value
+            for arg, value in input_args.items()
+            if arg not in ignore_args
+        }
 
+        for species, (input_file, input_name, input_select) in freqs.items():
+            
+            args_d = {
+                "input_file": input_file,
+                "input_name": input_name,
+                "input_select": input_select,
+                "species": species,
+            }
+
+            args_d.update(arg_template_d)
+
+            cmd_args.append(args_d)
+            
         if input_args['command'] == 'filter':
             LOG.info('Filtering files: %s', len(freqs))
 
