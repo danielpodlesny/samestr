@@ -70,10 +70,10 @@ def remove_marker_pos(marker_pos, remove_markers=None):
              removed given `remove_markers`.
     """
     remove_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
-        if marker in remove_markers:
-            remove_pos = remove_pos.union(
-                list(range(marker_start, marker_end)))
+    if remove_markers:
+        for marker, (marker_start, marker_end, _) in marker_pos.items():
+            if marker in remove_markers:
+                remove_pos.update(range(marker_start, marker_end))
     return remove_pos
 
 
@@ -97,11 +97,10 @@ def z_coverage(x, covered_pos_only=False):
 
 
 def species_min_samples(args, n_samples):
-    if args['species_min_samples']:
-        if n_samples < args['species_min_samples']:
-            LOG.debug('Skipping %s since there are fewer than %s samples.' %
-                      (args['species'], args['species_min_samples']))
-            return False
+    if args['species_min_samples'] and n_samples < args['species_min_samples']:
+        LOG.debug('Skipping %s since there are fewer than %s samples.' %
+            (args['species'], args['species_min_samples']))
+        return False
     return True
 
 
@@ -164,7 +163,7 @@ def filter_freqs(args):
         # x has to be float (extract -> float not int)
         x[:, list(trunc_pos), :] = np.nan
 
-        removed_pos = removed_pos.union(trunc_pos)
+        removed_pos.update(trunc_pos)
 
     # 1.2 Keep OR Remove markers
     if args['marker_keep'] or args['marker_remove']:
@@ -187,7 +186,7 @@ def filter_freqs(args):
                  (len(rm_marker_set), len(remove_pos),
                   round(len(remove_pos) / total_species_markers_size, 1)))
         x[:, list(remove_pos), :] = np.nan
-        removed_pos = removed_pos.union(remove_pos)
+        removed_pos.update(remove_pos)
 
     # 2 Filter Sample Variants [per Position]
 
