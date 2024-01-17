@@ -46,18 +46,20 @@ def trunc_marker_ends(marker_pos, trunc_len):
              truncated given `marker_pos` and `trunc_len`.
     """
     trunc_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
+    marker_len_cutoff = 2 * trunc_len
+    for marker, (marker_start, marker_end, marker_len) in marker_pos.items():
 
-        # drop entirely if trunc_len * 2 longer than marker:
-        if trunc_len * 2 > marker_len:
+        if marker_len_cutoff > marker_len:
+            # drop entirely if trunc_len * 2 longer than marker:
             LOG.info('Marker %s shorter than total `trunc_len`' % marker)
-            trunc_pos = trunc_pos.union(list(range(marker_start, marker_end)))
-            continue
+            trunc_pos.update(range(marker_start, marker_end))
+        else:
+            # set trunc positions
+            trunc_pos.update(
+                range(marker_start, marker_start + trunc_len),
+                range(marker_start, marker_start + trunc_len),
+            )
 
-        # set trunc positions
-        trunc_pos_start = list(range(marker_start, marker_start + trunc_len))
-        trunc_pos_end = list(range(marker_end - trunc_len, marker_end))
-        trunc_pos = trunc_pos.union(trunc_pos_start, trunc_pos_end)
     return trunc_pos
 
 
