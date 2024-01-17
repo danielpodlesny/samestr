@@ -26,27 +26,30 @@ def set_output_structure(args):
             # metaphlan
             arg['sam'] = arg['input_dir'] + n + '.sam.bz2'
             arg['bowtie2out'] = arg['input_dir'] + n + '.bowtie2out'
+            
+            # motus
+            arg['bam'] = arg['input_dir'] + n + '.bam'
 
-            # metaphlan profiles
-            if not arg['mp_profiles_dir']:
-                arg['mp_profiles_dir'] = arg['input_dir']
+            # taxonomic profiles
+            if not arg['tax_profiles_dir']:
+                arg['tax_profiles_dir'] = arg['input_dir']
             else:
-                arg['mp_profiles_dir'] = abspath(arg['mp_profiles_dir']) + '/'
+                arg['tax_profiles_dir'] = abspath(arg['tax_profiles_dir']) + '/'
 
             # file name
-            arg['mp_profile'] = arg['mp_profiles_dir'] + n + arg[
-                'mp_profiles_extension']
+            arg['tax_profile'] = arg['tax_profiles_dir'] + n + arg[
+                'tax_profiles_extension']
 
             # exists
-            if not exists(arg['mp_profile']):
-                LOG.error('MetaPhlAn file not found: %s' % arg['mp_profile'])
+            if not exists(arg['tax_profile']):
+                LOG.error('Taxonomic profile not found: %s' % arg['tax_profile'])
                 exit(1)
 
             # output
             sample_dir = out_dir + n + '/'
 
             ## sam2bam
-            arg['bam'] = sample_dir + n + '.bam'
+            arg['sorted_bam'] = sample_dir + n + '.bam'
 
             ## bam2freq
             arg['gene_file'] = sample_dir + n + '.gene_file.txt'

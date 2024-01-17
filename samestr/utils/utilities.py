@@ -123,52 +123,40 @@ def load_numpy_file(input_file):
         return np.load(input_file, allow_pickle=True)
     
 
+import os
+import re
+
 def collect_input_files(input_dir, accepted_extensions, recursive=False):
     """
-        Collect filepaths with valid extensions from an input directory.
-        If recursive is True, collect files from subdirectories as well. 
+    Collect filepaths with valid extensions from an input directory.
+    If recursive is True, collect files from subdirectories as well.
     """
 
-    try:
-        dirpath, dirs, _ = next(os.walk(input_dir))
-    except StopIteration:
+    if not os.path.exists(input_dir):
         raise ValueError(f"Could not find input directory {input_dir} ({os.path.abspath(input_dir)})")
 
     samples = {}
     extensions = set()
-    
-    dirs = ([dirpath] + dirs) if recursive else [dirpath]
     accepted_extensions = {ext.strip(".") for ext in accepted_extensions}
 
-    for sample_dir in dirs:
-        sample_dir = sample_dir, os.path.join(dirpath, sample_dir)
+    for dirpath, dirs, files in os.walk(input_dir):
+        if not recursive and dirpath != input_dir:
+            continue
 
-        for f in os.listdir(sample_dir):
-            if os.isfile(f):
-                filename_tokens = re.split(r"[._]", f)
-                ext, *comp_ext = filename_tokens[-2:]
+        for f in files:
+            full_path = os.path.join(dirpath, f)
+            if os.path.isfile(full_path):
+                ext = f.split('.')[-1]
+                if ext in accepted_extensions:
+                    extensions.add(ext)
+                    sample = f[:-len(ext) - 1]  # Remove extension and dot
+                    samples.setdefault(sample, []).append(full_path)
 
-                extension = None
-                if comp_ext:
-                    if comp_ext in accepted_extensions:
-                        extension = comp_ext
-                    else:
-                        comp_ext = ".".join((ext, comp_ext))
-                        if comp_ext in accepted_extensions:
-                            extension = comp_ext
-                elif ext in accepted_extensions:
-                    extension = ext
-                
-                if extension is not None:
-                    extensions.add("." + extension)
+    if len(extensions) > 1:
+        raise ValueError(f"Found files with different extensions: {extensions}")
 
-                    if len(extensions) > 1:
-                        raise ValueError(f"Found files with different extensions: {extensions}")
+    return samples, "." + next(iter(extensions)) if extensions else None
 
-                    sample = f[:-len(ext)]
-                    samples.setdefault(sample, []).append(os.path.join(sample_dir, f))
-
-    return samples, extensions.pop() if extensions else None
     
 
 

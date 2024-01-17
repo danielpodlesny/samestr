@@ -82,30 +82,29 @@ def read_params():
 
     # input
     convert_input = convert_parser.add_argument_group('Input arguments')
-    # convert_input.add_argument(
-    #     '--input-files',
-    #     required=True,
-    #     metavar='SAM|SAM.BZ2',
-    #     nargs='+',
-    #     default=[],
-    #     type=str,
-    #     help='Path to input MetaPhlAn marker alignments.')
-    
     convert_input.add_argument(
-        '--input-dir',
+        '--input-files',
         required=True,
-        metavar='INPUT_DIR',
-        default='.',
+        metavar='SAM|SAM.BZ2|BAM',
+        nargs='+',
+        default=[],
         type=str,
-        help='Path to input MetaPhlAn marker alignments.')
+        help='Path to input MetaPhlAn or mOTUs marker alignments (.sam, .sam.bz2, .bam).')
+    
+    # convert_input.add_argument(
+    #     '--input-dir',
+    #     required=True,
+    #     metavar='INPUT_DIR',
+    #     default='.',
+    #     type=str,
+    #     help='Path to input MetaPhlAn or mOTUs marker alignments (.sam, .sam.bz2, .bam).')
     
     convert_input.add_argument(
         '--recursive-input',
         required=False,
         default=False,
-        dest='REC_INPUT',
         action='store_true',
-        help='Allow checking subdirectories of input directory for input files.')
+        help='Allow checking subdirectories of the input directory for input files.')
 
     # output
     convert_output = convert_parser.add_argument_group('Output arguments')
@@ -141,28 +140,37 @@ def read_params():
         type=int,
         help='Minimum alignment length.')
     convert_alignment.add_argument(
-        '--mp-profiles-dir',
+        '--tax-profiles-dir',
         required=False,
         metavar='DIR',
         type=str,
-        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt). '
-        'When not specified, will look for metaphlan profiles in `input-files` directory.'
+        help='Path to directory with taxonomic profiles (MetaPhlAn or mOTUs, default extension: .profile.txt). '
+        'When not specified, will look for profiles in `input-files` directory.'
     )
+    # TODO: input-files reference
     convert_alignment.add_argument(
-        '--mp-profiles-extension',
+        '--tax-profiles-extension',
         required=False,
         metavar='EXT',
         default='.profile.txt',
         type=str,
-        help='File extension of MetaPhlAn profiles.'
+        help='File extension of taxonomic profiles.'
     )
+    convert_alignment.add_argument(
+        '--db-source',
+        required=True,
+        default='MetaPhlAn',
+        choices=['MetaPhlAn', 'mOTUs'],
+        type=str,
+        help='Source of database input files (MetaPhlAn [default] or mOTUs.)'
+    )    
     convert_alignment.add_argument(
         '--marker-dir',
         required=False,
         metavar='DIR',
         default='marker_db/',
         type=str,
-        help='Path to MetaPhlAn species marker database.')
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
     convert_alignment.add_argument(
         '--min-base-qual',
         required=False,
@@ -220,20 +228,20 @@ def read_params():
         type=str,
         help='Reference genomes in fasta format.')
     extract_input.add_argument(
-        '--species',
+        '--clade',
         required=True,
         metavar='CLADE',
         type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
+        help='Clade to process from input files. '
+             'Names must correspond to the taxonomy of the respective database '
+             '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
     extract_input.add_argument(
         '--marker-dir',
         required=True,
         metavar='DIR',
         default='marker_db/',
         type=str,
-        help='Path to MetaPhlAn species marker database.')
+        help='Path to MetaPhlAn or mOTUs marker database.')
 
     # output
     extract_output = extract_parser.add_argument_group('Output arguments')
@@ -250,7 +258,7 @@ def read_params():
         default=False,
         action='store_true',
         help='If not working from memory, '
-             'keeps extracted species alignments per sample on disk.')
+             'keeps extracted alignments per sample on disk.')
     extract_output.add_argument(
         '--save-marker-aln',
         required=False,
@@ -312,17 +320,17 @@ def read_params():
         type=str,
         help='Path to output directory.')
 
-    # species
-    merge_species = merge_parser.add_argument_group('Species arguments')
-    merge_species.add_argument(
-        '--species',
+    # clades
+    merge_clades = merge_parser.add_argument_group('Clade arguments')
+    merge_clades.add_argument(
+        '--clade',
         required=False,
         metavar='CLADE',
         nargs='+',
         type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
+        help='Clade to process from input files. Processing all if not specified. '
+             'Names must correspond to the taxonomy of the respective database '
+             '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
 
     # FILTER
     filter_parser = subparser.add_parser(
@@ -387,50 +395,50 @@ def read_params():
 
     # filter settings
 
-    # species
-    filter_species = filter_parser.add_argument_group(
-        'Species arguments')
-    filter_species.add_argument(
-        '--species',
+    # clades
+    filter_clade = filter_parser.add_argument_group(
+        'Clade arguments')
+    filter_clade.add_argument(
+        '--clade',
         required=False,
         metavar='CLADE',
         nargs='+',
         type=str,
-        help='Species to process from input files. '
-              'Names must correspond to MetaPhlAn taxonomy '
-              '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
-    filter_species.add_argument(
-        '--species-min-samples',
+        help='Clade to process from input files. Processing all if not specified. '
+              'Names must correspond to the taxonomy of the respective database '
+              '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
+    filter_clade.add_argument(
+        '--clade-min-samples',
         required=False,
         metavar='INT',
         default=2,
         type=int,
-        help='Skipping species with fewer than `species-min-samples` samples.')
+        help='Skipping clades with fewer than `clade-min-samples` samples.')
 
     # markers
     filter_markers = filter_parser.add_argument_group(
-        'Species Marker arguments')
+        'Clade Marker arguments')
     filter_markers.add_argument(
         '--marker-dir',
         required=True,
         metavar='DIR',
         default='marker_db/',
         type=str,
-        help='Path to MetaPhlAn species marker database.')
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
     filter_markers.add_argument(
         '--marker-remove',
         required=False,
         metavar='TXT',
         type=str,
-        help='List of Markers to remove for selected species. '
-             'Requires `species` to be specified.')
+        help='List of Markers to remove for selected clade. '
+             'Requires `clade` to be specified.')
     filter_markers.add_argument(
         '--marker-keep',
         required=False,
         metavar='TXT',
         type=str,
-        help='List of Markers to keep for selected species. '
-             'Requires `species` to be specified. Overrides `marker-remove`.')
+        help='List of Markers to keep for selected clade. '
+             'Requires `clade` to be specified. Overrides `marker-remove`.')
     filter_markers.add_argument(
         '--marker-trunc-len',
         required=False,
@@ -601,22 +609,22 @@ def read_params():
         metavar='DIR',
         type=str,
         help='Path to `samestr compare` output directory. Must contain '
-             'pairwise comparison of species alignment files (.fraction.txt, .overlap.txt)'
+             'pairwise comparison of alignment files (.fraction.txt, .overlap.txt)'
     )
     summarize_input.add_argument(
-        '--mp-profiles-dir',
+        '--tax-profiles-dir',
         required=True,
         metavar='DIR',
         type=str,
-        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt).'
+        help='Path to directory with taxonomic profiles (MetaPhlAn or mOTUs, default extension: .profile.txt).'
     )
     summarize_input.add_argument(
-        '--mp-profiles-extension',
+        '--tax-profiles-extension',
         required=False,
         metavar='EXT',
         default='.profile.txt',
         type=str,
-        help='File extension of MetaPhlAn profiles.'
+        help='File extension of taxonomic profiles.'
     )
 
     # output
@@ -703,32 +711,40 @@ def read_params():
     db_parser = subparser.add_parser(
         'db',
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Make database from MetaPhlAn markers.')
+        help='Make database from MetaPhlAn or mOTUs markers.')
 
     # input
     db_input = db_parser.add_argument_group('Input arguments')
     db_input.add_argument(
-        '--mpa-markers',
+        '--db-source',
+        required=False,
+        default='MetaPhlAn',
+        choices=['MetaPhlAn', 'mOTUs'],
+        type=str,
+        help='Source of database input files (MetaPhlAn [default] or mOTUs.)'
+    )    
+    db_input.add_argument(
+        '--markers-fasta',
         required=True,
         metavar='FASTA',
         type=str,
-        help='MetaPhlAn markers file (e.g. all_markers.fasta, mpa_vJan21_CHOCOPhlAnSGB_202103.fna)'
+        help='Markers fasta file (MetaPhlAn [mpa_vJan21_CHOCOPhlAnSGB_202103.fna or higher], or mOTUs [db_mOTU_DB_CEN.fasta]'
     )
     db_input.add_argument(
-        '--mpa-pkl',
+        '--markers-pkl',
         required=False,
         metavar='MPA_PKL',
         type=str,
-        help='Bowtie2db mpa.pkl file.')
+        help='MetaPhlAn mpa.pkl file. (only required for MetaPhlAn.)')
     db_input.add_argument(
-        '--species',
+        '--clade',
         required=False,
         metavar='CLADE',
         nargs='+',
         type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
+        help='Clade to process from input files. Processing all if not specified. '
+             'Names must correspond to the taxonomy of the respective database '
+             '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
 
     # output
     db_output = db_parser.add_argument_group('Output arguments')

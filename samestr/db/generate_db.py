@@ -7,13 +7,9 @@ from os import makedirs
 
 import logging
 
-# TODO: do we still need this?
-# from samestr.db import TaxClade, TaxTree
 from samestr.utils import clade_path
 
-# TODO: rename species/clade
 LOG = logging.getLogger(__name__)    
-
 
 def generate_db(input_args):
     """
@@ -21,66 +17,64 @@ def generate_db(input_args):
     from MetaPhlAn or mOTUs database that is required for SameStr.
     """
 
-    # set species markers
+    # set markers
     all_clades = set()
     all_markers = {}
     n_markers = 0
 
     # get markers fasta
-    if input_args['mpa_markers'].endswith('.bz2'):
-        marker_fasta = SeqIO.to_dict(
-            SeqIO.parse(bz2.open(input_args['mpa_markers'], 'rt'), 'fasta'))
+    if input_args['markers_fasta'].endswith('.bz2'):
+        markers_fasta = SeqIO.to_dict(
+            SeqIO.parse(bz2.open(input_args['markers_fasta'], 'rt'), 'fasta'))
     else:
-        marker_fasta = SeqIO.to_dict(
-            SeqIO.parse(input_args['mpa_markers'], 'fasta'))
+        markers_fasta = SeqIO.to_dict(
+            SeqIO.parse(input_args['markers_fasta'], 'fasta'))
 
     # get markers mapping   
-    # TODO fix to real var
-    db = 'mOTUs'
-    if db == 'MetaPhlAn':
-        marker_pickle = pickle.load(bz2.BZ2File(input_args['mpa_pkl']))
-    elif db == 'mOTUs':
-        marker_pickle = {"markers": {}}
+    if input_args['db_source'] == 'MetaPhlAn':
+        markers_pickle = pickle.load(bz2.BZ2File(input_args['markers_pkl']))
+    elif input_args['db_source'] == 'mOTUs':
+        markers_pickle = {"markers": {}}
 
         # Populate marker_pickle based on db_mOTU_DB_CEN.fasta
-        for marker in marker_fasta:
+        for marker in markers_fasta:
             clade, _ = marker.split('.', 1)
-            if marker not in marker_pickle['markers']:
+            if marker not in markers_pickle['markers']:
                 if clade != 'NA':
-                    marker_pickle['markers'][marker] = {'clade': clade}
+                    markers_pickle['markers'][marker] = {'clade': clade}
 
-    for marker in marker_pickle['markers']:
+    for marker in markers_pickle['markers']:
 
         # retrieve clade names
-        clade = marker_pickle['markers'][marker]['clade']
+        clade = markers_pickle['markers'][marker]['clade']
         all_clades.add(clade)
         n_markers += 1
 
         # get only selected clades
-        if 'species' in input_args and input_args['species'] is not None:
-            if clade not in input_args['species']:
+        if 'clade' in input_args and input_args['clade'] is not None:
+            if clade not in input_args['clade']:
                 continue
 
         if clade not in all_markers:
             all_markers[clade] = set()
         all_markers[clade].add(marker)
 
-    LOG.debug('Database contains %s species, %s markers' %
+    LOG.debug('Database contains %s clades, %s markers' %
               (len(all_clades), n_markers))
 
-    # report selected species
-    if 'species' in input_args and input_args['species'] is not None:
-        species_intersect = set(
-            input_args['species']).intersection(all_clades)
-        species_diff = set(
-            input_args['species']).difference(species_intersect)
+    # report selected clades
+    if 'clade' in input_args and input_args['clade'] is not None:
+        clade_intersect = set(
+            input_args['clade']).intersection(all_clades)
+        clade_diff = set(
+            input_args['clade']).difference(clade_intersect)
 
-        LOG.debug('Selected species found in the database: %s/%s' %
-                  (len(species_intersect), len(input_args['species'])))
-        if len(species_intersect) < len(input_args['species']):
-            LOG.debug('Species not found in the database: %s' %
-                      ', '.join(species_diff))
-        all_clades = species_intersect
+        LOG.debug('Selected clades found in the database: %s/%s' %
+                  (len(clade_intersect), len(input_args['clade'])))
+        if len(clade_intersect) < len(input_args['clade']):
+            LOG.debug('Clades not found in the database: %s' %
+                      ', '.join(clade_diff))
+        all_clades = clade_intersect
 
     for clade in all_clades:
 
@@ -100,8 +94,8 @@ def generate_db(input_args):
         LOG.debug('Output directory: %s, %s' % (output_base, marker_filename))
 
         # check marker count
-        species_markers = sorted(all_markers[clade])
-        n_markers = len(species_markers)
+        clade_markers = sorted(all_markers[clade])
+        n_markers = len(clade_markers)
         LOG.debug('Markers found for %s: %s' % (clade, n_markers))
         if not n_markers:
             continue
@@ -113,9 +107,9 @@ def generate_db(input_args):
 
         with open(marker_filename, 'w') as marker_file:
 
-            for marker in species_markers:
-                if marker in marker_fasta:
-                    seq = marker_fasta[marker]
+            for marker in clade_markers:
+                if marker in markers_fasta:
+                    seq = markers_fasta[marker]
                     marker_len = len(seq)
 
                     contig_id = marker
@@ -139,8 +133,8 @@ def generate_db(input_args):
         if remove_markers:
             LOG.debug('Dropping markers for %s: %s' %
                       (clade, len(remove_markers)))
-            species_markers = [
-                m for m in species_markers if m not in remove_markers]
+            clade_markers = [
+                m for m in clade_markers if m not in remove_markers]
 
         with open(gene_filename, 'w') as gene_file, \
                 open(cmap_filename, 'w') as cmap_file, \
@@ -149,5 +143,5 @@ def generate_db(input_args):
             pos_file.write('\n'.join(pos_data) + '\n')
             gene_file.write('\n'.join(gene_data) + '\n')
             cmap_file.write('\n'.join(
-                ['\t'.join([clade, m]) for m in species_markers]) + '\n')
+                ['\t'.join([clade, m]) for m in clade_markers]) + '\n')
     return input_args

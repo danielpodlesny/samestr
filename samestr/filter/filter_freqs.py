@@ -5,17 +5,18 @@ import warnings
 import numpy as np
 
 from samestr.utils.utilities import load_numpy_file
+from samestr.utils import clade_path
 
 LOG = logging.getLogger(__name__)
 
 
-def read_marker_positions(species_marker_file):
-    """Reads species marker file.
+def read_marker_positions(clade_marker_file):
+    """Reads clade marker file.
 
     Returns: Dict with start, end positions and len for each marker.
     """
     marker_positions = {}
-    with open(species_marker_file, 'r') as marker_pos:
+    with open(clade_marker_file, 'r') as marker_pos:
         header = next(marker_pos)
         for line in marker_pos:
             line = line.rstrip().split()
@@ -28,7 +29,7 @@ def read_marker_positions(species_marker_file):
 
 
 def read_marker_list(marker_list_file):
-    """Reads species marker list file.
+    """Reads clade marker list file.
 
     Returns: Set of marker names.
     """
@@ -94,11 +95,11 @@ def z_coverage(x, covered_pos_only=False):
     return zcov
 
 
-def species_min_samples(args, n_samples):
-    if args['species_min_samples']:
-        if n_samples < args['species_min_samples']:
+def clade_min_samples(args, n_samples):
+    if args['clade_min_samples']:
+        if n_samples < args['clade_min_samples']:
             LOG.debug('Skipping %s since there are fewer than %s samples.' %
-                      (args['species'], args['species_min_samples']))
+                      (args['clade'], args['clade_min_samples']))
             return False
     return True
 
@@ -106,9 +107,9 @@ def species_min_samples(args, n_samples):
 def filter_freqs(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], args['species'])
+    output_name = join(args['output_dir'], args['clade'])
     if exists(output_name + '.npz'):
-        LOG.info('Skipping %s. Output file exists.' % args['species'] + '.npz')
+        LOG.info('Skipping %s. Output file exists.' % args['clade'] + '.npz')
         return True
 
     # load sample order
@@ -120,19 +121,18 @@ def filter_freqs(args):
         with open(args['input_select'], 'r') as file:
             input_select = file.read().strip().split('\n')
 
-    # skip if fewer than args['species_min_samples'] samples
-    if not species_min_samples(args, len(samples)):
+    # skip if fewer than args['clade_min_samples'] samples
+    if not clade_min_samples(args, len(samples)):
         return False
 
     # load freqs
     x = load_numpy_file(args['input_file'])
-    total_species_markers_size = x.shape[1]
+    total_clade_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
     removed_pos = set()
 
     # get marker metadata
-    marker_metadata_file = join(args['marker_dir'],
-                                '%s.positions.txt' % args['species'])
+    marker_metadata_file = args['marker_dir'] + '/' + clade_path(args['clade'], filebase = True) + '.positions.txt'
     marker_positions = read_marker_positions(marker_metadata_file)
 
     # 0 Remove Samples
@@ -146,7 +146,7 @@ def filter_freqs(args):
         x = x[keep_samples, :, :]
 
     LOG.info('Filtering %s found in %s samples.' %
-             (args['species'], len(samples)))
+             (args['clade'], len(samples)))
 
     # 1 Filter Markers
 
@@ -157,7 +157,7 @@ def filter_freqs(args):
 
         LOG.info('Truncating marker ends at %s [%s%%] global positions.' %
                  (len(trunc_pos),
-                  round(len(trunc_pos) / total_species_markers_size, 1)))
+                  round(len(trunc_pos) / total_clade_markers_size, 1)))
 
         # x has to be float (extract -> float not int)
         x[:, list(trunc_pos), :] = np.nan
@@ -183,7 +183,7 @@ def filter_freqs(args):
 
         LOG.info('Zeroing %s markers at %s [%s%%] global positions.' %
                  (len(rm_marker_set), len(remove_pos),
-                  round(len(remove_pos) / total_species_markers_size, 1)))
+                  round(len(remove_pos) / total_clade_markers_size, 1)))
         x[:, list(remove_pos), :] = np.nan
         removed_pos = removed_pos.union(remove_pos)
 
@@ -253,7 +253,7 @@ def filter_freqs(args):
         x = x[keep_samples, :, :]
 
     # 4.4 Sample minimum
-    if not species_min_samples(args, x.shape[0]):
+    if not clade_min_samples(args, x.shape[0]):
         return False
 
     # 5 Filter Positions [Global]
@@ -271,7 +271,7 @@ def filter_freqs(args):
         LOG.info(
             'Zeroing %s global positions [%s%%] covered by too few samples.' %
             (sum(remove_pos),
-             round(sum(remove_pos) / total_species_markers_size, 1)))
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
         x[:, remove_pos, :] = np.nan
         removed_pos = set([pos for pos, b in enumerate(remove_pos)
                            if b]).union(removed_pos)
@@ -283,12 +283,12 @@ def filter_freqs(args):
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) == 0
             LOG.info('Zeroing %s [%s%%] global monomorphic positions.' %
                      (sum(remove_pos),
-                      round(sum(remove_pos) / total_species_markers_size, 1)))
+                      round(sum(remove_pos) / total_clade_markers_size, 1)))
         elif args['keep_mono']:
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) > 0
             LOG.info('Zeroing %s [%s%%] global polymorphic positions.' %
                      (sum(remove_pos),
-                      round(sum(remove_pos) / total_species_markers_size, 1)))
+                      round(sum(remove_pos) / total_clade_markers_size, 1)))
 
         x[:, remove_pos, :] = np.nan
         removed_pos = set([pos for pos, b in enumerate(remove_pos)
@@ -308,7 +308,7 @@ def filter_freqs(args):
     LOG.info('Removing {} sample(s) with no coverage.'.format(sum(remove_samples)))
 
     # 7.2 Sample minimum
-    if not species_min_samples(args, x.shape[0]):
+    if not clade_min_samples(args, x.shape[0]):
         return False
 
     # Save retained samples to file

@@ -34,7 +34,7 @@ Here, we present a pipeline to process data starting from raw single or paired-e
 **SameStr** must be used from the command line and encompasses multiple modules which can be called by using the following syntax: **`samestr <command>`**. Help for specific command-line usage is available by using the `--help` option with the `samestr` command (`samestr --help`) or any of its modules (`samestr convert --help`).
 
 [Module Description](#description)
-- [db](#db): regenerate species marker db from MetaPhlAn markers `mpa-pkl`
+- [db](#db): regenerate species marker db from MetaPhlAn markers `markers-pkl`
 - [convert](#convert): convert MetaPhlAn alignments `sam` to SNV profiles `npy`
 - [extract](#extract): extract SNV profiles `npy` from reference genomes `fasta`
 - [merge](#merge): merge SNV profiles `npy` + `npy` from multiple sources
@@ -92,7 +92,7 @@ The module **`samestr db`** has to be used after installation of SameStr in orde
 ### Usage example
 ```
 samestr db \
---mpa-pkl metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.pkl \
+--markers-pkl metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.pkl \
 --mpa-markers metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.fna.bz2 \
 --output-dir marker_db/
 ```
@@ -253,6 +253,6 @@ Specify the minimum required overlap (`aln-pair-min-overlap`) and similarity (`a
 ```
 samestr summarize \
 --input-dir out_compare/ \
---mp-profiles-dir out_align/metaphlan/ \
+--tax-profiles-dir out_align/metaphlan/ \
 --output-dir out_summarize/
 ```
