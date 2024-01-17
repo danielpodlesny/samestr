@@ -35,7 +35,7 @@ def samestr(input_args):
     """Main function for SAMESTR."""
     accepted_extensions_dict = {
         'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
-        'convert': ['.sam', '.sam.bz2',' .bam'],
+        'convert': ['.sam', '.sam.bz2', '.bam'],
         'extract': ['.fasta', '.fa', '.fna', '.fasta.gz', '.fa.gz', '.fna.gz'],
         'merge': ['.npy', '.npy.gz', '.npz'],
         'filter': ['.npy', '.npy.gz', '.npz'],

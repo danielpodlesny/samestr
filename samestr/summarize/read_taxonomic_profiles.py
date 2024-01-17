@@ -219,7 +219,7 @@ def get_clade_profile(ifn, db_source=['MetaPhlAn', 'mOTUs']):
                                   combine='horizontal',
                                   all_levels=False)
     elif db_source == 'mOTUs':
-        profile = merge_horizontal_taxonomic_profile(read_function=read_metaphlan_profile, file_fns=[ifn])
+        profile = merge_horizontal_taxonomic_profile(read_function=read_motus_profile, file_fns=[ifn])
     return profile
 
 def get_clade_profile_dict(ifn, db_source=['MetaPhlAn', 'mOTUs']):
