@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from samestr import __version__
 
 with open('requirements.txt', 'rt') as requirements_file:
     requirements = [line for line in requirements_file.read().splitlines()
                     if not line.startswith('#')]
 
 setup(name='samestr',
-      version='1.2023.04',
+      version=f'{__version__}',
       description='SameStr identifies shared strains between pairs of '
                   'metagenomic samples based on the similarity of SNV profiles.',
       author='Daniel Podlesny',
