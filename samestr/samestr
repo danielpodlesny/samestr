@@ -157,8 +157,8 @@ def samestr(input_args):
 
         for clade, freq in list(freqs.items()):
             if len(freq) != 2:
-                LOG.warning('Skipping %s. Found SNV profile '
-                            'but no name file.', clade)
+                LOG.warning('Skipping [%s]. Found SNV profile '
+                            'but no name file: %s' % (clade, ', '.join(freq)))
                 freqs.pop(clade)
             if 'clade' in input_args and input_args['clade'] is not None:
                 if clade not in input_args['clade']:
@@ -169,20 +169,19 @@ def samestr(input_args):
             for i_s in input_args['samples_select']:
                 clade = basename(i_s).split('.select.txt')[0]
                 if clade not in freqs:
-                    LOG.warning('Skipping %s. Found selection file '
-                                'but no SNV profile.', clade)
-                else:
+                    LOG.warning('Skipping [%s]. Found selection file '
+                                'but no SNV profile: %s' % (clade, ', '.join(freq)))
                     freqs[clade] += [i_s]
 
         for clade, freq in list(freqs.items()):
             if len(freq) > 3:
                 LOG.warning('Skipping %s. Found more than one '
-                            'sample selection file.', clade)
+                            'sample selection file: %s' % (clade, ', '.join(freq)))
                 freqs.pop(clade)
             elif len(freq) == 2:
                 freq += [None]
             elif len(freq) != 3:
-                LOG.error('Unexpected number of files (%s): %s.', len(freq), clade)
+                LOG.error('Unexpected number of files (%s) for [%s]: %s' % (clade, ', '.join(freq)))
                 exit(0)
 
         # Spread args over clades

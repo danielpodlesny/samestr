@@ -172,18 +172,21 @@ def filter_freqs(args):
             keep_markers = read_marker_list(args['marker_keep']) & set(
                 marker_positions.keys())
             rm_marker_set = set(keep_markers) ^ set(marker_positions.keys())
+            cmd = '--marker-keep'
 
         elif args['marker_remove']:
             # available marker set intersect w/ markers
             rm_marker_set = read_marker_list(args['marker_remove']) & set(
                 marker_positions.keys())
+            cmd = '--marker-keep'
 
         remove_pos = remove_marker_pos(marker_positions,
                                        remove_markers=rm_marker_set)
 
-        LOG.info('Zeroing %s markers at %s [%s%%] global positions.' %
+        LOG.info('Zeroing %s markers at %s [%s%%] global positions (cmd: %s).' %
                  (len(rm_marker_set), len(remove_pos),
-                  round(len(remove_pos) / total_clade_markers_size, 1)))
+                  round(len(remove_pos) / total_clade_markers_size, 1), 
+                  cmd))
         x[:, list(remove_pos), :] = np.nan
         removed_pos = removed_pos.union(remove_pos)
 
@@ -223,8 +226,9 @@ def filter_freqs(args):
         keep_samples_names = set(
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
-        LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
-                 (len(remove_samples_names), ', '.join(remove_samples_names)))
+        if len(remove_samples_names) > 0:
+            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
+                     (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
 
@@ -235,8 +239,9 @@ def filter_freqs(args):
         keep_samples_names = set(
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
-        LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
-                 (len(remove_samples_names), ', '.join(remove_samples_names)))
+        if len(remove_samples_names) > 0:
+            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
+                     (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
 
@@ -247,8 +252,9 @@ def filter_freqs(args):
         keep_samples_names = set(
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
-        LOG.info('Removing %s sample(s) due to insufficient vertical coverage: %s' %
-                 (len(remove_samples_names), ', '.join(remove_samples_names)))
+        if len(remove_samples_names) > 0:
+            LOG.info('Removing %s sample(s) due to insufficient vertical coverage: %s' %
+                     (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
 
@@ -305,7 +311,8 @@ def filter_freqs(args):
     remove_samples = np.sum(coverage(x) > 0, axis=1) == 0
     samples = [s for i, s in enumerate(samples) if not remove_samples[i]]
     x = x[~remove_samples, :, :]
-    LOG.info('Removing {} sample(s) with no coverage.'.format(sum(remove_samples)))
+    if sum(remove_samples) > 0:
+        LOG.info('Removing {} sample(s) with no coverage.'.format(sum(remove_samples)))
 
     # 7.2 Sample minimum
     if not clade_min_samples(args, x.shape[0]):
