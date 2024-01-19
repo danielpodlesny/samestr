@@ -123,54 +123,54 @@ def load_numpy_file(input_file):
         return np.load(input_file, allow_pickle=True)
     
 
+import os
+import re
+
 def collect_input_files(input_dir, accepted_extensions, recursive=False):
     """
-        Collect filepaths with valid extensions from an input directory.
-        If recursive is True, collect files from subdirectories as well. 
+    Collect filepaths with valid extensions from an input directory.
+    If recursive is True, collect files from subdirectories as well.
     """
 
-    try:
-        dirpath, dirs, _ = next(os.walk(input_dir))
-    except StopIteration:
+    if not os.path.exists(input_dir):
         raise ValueError(f"Could not find input directory {input_dir} ({os.path.abspath(input_dir)})")
 
     samples = {}
     extensions = set()
-    
-    dirs = ([dirpath] + dirs) if recursive else [dirpath]
     accepted_extensions = {ext.strip(".") for ext in accepted_extensions}
 
-    for sample_dir in dirs:
-        # sample_dir = sample_dir, os.path.join(dirpath, sample_dir)
-        sample_dir = sample_dir if sample_dir == dirpath else os.path.join(dirpath, sample_dir)
+    for sample_dir, _, files in os.walk(input_dir):
+         
+        for fn in files:
+            extension = None
 
-        for f in os.listdir(sample_dir):
-            if os.isfile(f):
-                filename_tokens = re.split(r"[._]", f)
-                ext, *comp_ext = filename_tokens[-2:]
+            # accepted extensions can be single ('.fa') or composite ('.fa.gz')
+            file_extensions = re.split(r"\.", fn)[-2:]
+            if len(file_extensions) >= 1:
+                # -> check last or last two suffixes                
+                if file_extensions[-1] in accepted_extensions:
+                    # check rightmost suffix
+                    extension = file_extensions[-1]
+                elif len(file_extensions) == 2:
+                    # else check concatenation of two rightmost suffixes
+                    ext = ".".join(file_extensions)
+                    if ext in accepted_extensions:
+                        extension = ext
 
-                extension = None
-                if comp_ext:
-                    comp_ext = comp_ext[0]
-                    if comp_ext in accepted_extensions:
-                        extension = comp_ext
-                    else:
-                        comp_ext = ".".join((ext, comp_ext))
-                        if comp_ext in accepted_extensions:
-                            extension = comp_ext
-                elif ext in accepted_extensions:
-                    extension = ext
-                
-                if extension is not None:
-                    extensions.add("." + extension)
+            if extension is not None:
+                # if this is a file with a valid extension
+                extension = f".{extension}"
+                extensions.add(extension)
+                if len(extensions) > 1:
+                    # we only allow one extension per input set
+                    # error out if more than one found
+                    raise ValueError(f"Found files with different extensions: {extensions}")
+                # strip extension off filename to obtain sample id
+                sample = fn[:-len(extension)]
+                # collect file
+                samples.setdefault(sample, []).append(os.path.join(sample_dir, fn))
 
-                    if len(extensions) > 1:
-                        raise ValueError(f"Found files with different extensions: {extensions}")
+        if not recursive:
+            break
 
-                    sample = f[:-len(extension)]
-                    samples.setdefault(sample, []).append(os.path.join(sample_dir, f))
-
-    return samples, extensions.pop() if extensions else None
-    
-
-
+    return samples, (list(extensions) + [None])[0]

@@ -9,7 +9,7 @@ import logging
 import logging.config
 import pathlib
 
-from samestr.utils.utilities import collect_input_files
+from samestr.utils.utilities import collect_input_files, list_group_by_basename
 from samestr.utils.ooSubprocess import serialize, parallelize_async
 from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
     set_output_structure
@@ -21,7 +21,7 @@ from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
 from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import mp2db
+from samestr.db import generate_db
 
 from samestr.utils.parse_args import read_params
 from samestr.utils.citations import citations
@@ -36,8 +36,8 @@ environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 def samestr(input_args):
     """Main function for SAMESTR."""
     accepted_extensions_dict = {
-        'convert': ['.sam', '.sam.bz2'],
         'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
+        'convert': ['.sam', '.sam.bz2', '.bam'],
         'extract': ['.fasta', '.fa', '.fna', '.fasta.gz', '.fa.gz', '.fna.gz'],
         'merge': ['.npy', '.npy.gz', '.npz'],
         'filter': ['.npy', '.npy.gz', '.npz'],
@@ -51,9 +51,13 @@ def samestr(input_args):
     accepted_extensions = accepted_extensions_dict[input_args['command']]
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
-            [input_args['mpa_markers']], accepted_extensions)
+            [input_args['markers_fasta']], accepted_extensions)
+        
+        if input_args['db_source'] == 'MetaPhlAn' and 'markers_pkl' not in input_args:
+            LOG.error('`markers-pkl` not provided. Required when using MetaPhlAn as the source database.')
+            exit(0)
 
-    elif input_args['command'] not in ('summarize', 'convert'):
+    elif input_args['command'] not in ('summarize'):
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
 
@@ -65,41 +69,50 @@ def samestr(input_args):
     if not isdir(input_args['output_dir']):
         pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
-    input_species = input_args.get("species")
+    input_clade = input_args.get("species")
 
     ## process individual commands
     ####
-    if input_args['command'] == 'convert':
-        input_args['input_files'], input_args['input_extension'] = collect_input_files(
-            input_args['input_dir'],
-            accepted_extensions,
-            recursive=input_args["recursive_input"]
-        )
+    if input_args['command'] == 'db':
+
+        # expand and generate db from markers/pkl files
+        generate_db(input_args)
+
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
+
+    elif input_args['command'] == 'convert':
+        # input_args['input_files'], input_args['input_extension'] = collect_input_files(
+        #     input_args['input_dir'],
+        #     accepted_extensions,
+        #     recursive=input_args["recursive_input"]
+        # )
         
+        # TODO: is this still needed?
+        input_args['input_files'] = list_group_by_basename(
+            input_args['input_files'],
+            cut_name_endings=[input_args['input_extension']])
+
         # Spread args over files/file-pairs, Set output names and check/make their dir
         input_args['input_sequence_type'] = 'single'
         cmd_args = spread_args_by_input_files(input_args)
         cmd_args = set_output_structure(cmd_args)
 
         # Run: convert
-        cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])
         cmd_args = parallelize_async(concatenate_gene_files, cmd_args,
                                  input_args['nprocs'])
+        
+        cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])        
         cmd_args = parallelize_async(bam2freq, cmd_args, input_args['nprocs'])
-
-    elif input_args['command'] == 'db':
-
-        # expand and generate db from metaphlan markers/pkl files
-        mp2db(input_args)
 
     elif input_args['command'] == 'merge':
 
-        species_file_dict = {}
+        clade_file_dict = {}
 
-        # group input files by species
+        # group input files by clade
         for file_path in input_args['input_files']:
             fn = basename(file_path)
-            species = fn.split('.')[0]
+            clade = fn.split('.')[0]
 
             # append list if file has been merged before
             sample_names = file_path.replace(
@@ -109,24 +122,26 @@ def samestr(input_args):
                 with open(sample_names, 'r', encoding="utf8") as s_n:
                     sample = s_n.read().strip().split('\n')
             else:
-                sample = fn.split(
-                    input_args['input_extension']
-                )[0].replace(f'{species}.', '')
+                sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
-            # skip if not in selected species
-            if input_species is not None and species not in input_species:
+            # skip if not in selected clade
+            if input_clade is not None and clade not in input_clade:
                 continue
 
-            species_file_dict.setdefault(species, []).append([sample, file_path])            
+            clade_file_dict.setdefault(clade, []).append([sample, file_path])
+            if clade not in clade_file_dict:
+                clade_file_dict[clade] = [[sample, file_path]]
+            else:
+                clade_file_dict[clade] += [[sample, file_path]]
 
         cmd_args = [
-            {
-                "species": species,
-                "input_files": files,
-                "output_dir": input_args['output_dir'],
-            }
-            for species, files in species.items()
-        ]
+               {
+                    "clade": clade,
+                    "input_files": files,
+                    "output_dir": input_args["output_dir"],
+               }
+               for clade, files in clade_file_dict.items()
+        ]        
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
 
@@ -139,45 +154,45 @@ def samestr(input_args):
         }
 
         for name in input_args['input_names']:
-            species = basename(name).split('.names.txt')[0]
-            if species not in freqs:
+            clade = basename(name).split('.names.txt')[0]
+            if clade not in freqs:
                 LOG.warning('Skipping %s. Found name file '
-                            'but no SNV profile.', species)
+                            'but no SNV profile.', clade)
             else:
-                freqs[species].append(name)
+                freqs[clade].append(name)
 
-        for species, freq in list(freqs.items()):
+        for clade, freq in list(freqs.items()):
             if len(freq) != 2:
                 LOG.warning('Skipping %s. Found SNV profile '
-                            'but no name file.', species)
-                freqs.pop(species)
-            elif input_species is not None and species not in input_species:
-                freqs.pop(species)
+                            'but no name file.', clade)
+                freqs.pop(clade)
+            elif input_clade is not None and clade not in input_clade:
+                freqs.pop(clade)
 
         # attach sample selection file
         if 'samples_select' in input_args:
             for i_s in input_args['samples_select']:
-                species = basename(i_s).split('.select.txt')[0]
-                if species not in freqs:
+                clade = basename(i_s).split('.select.txt')[0]
+                if clade not in freqs:
                     LOG.warning('Skipping %s. Found selection file '
-                                'but no SNV profile.', species)
+                                'but no SNV profile.', clade)
                 else:
-                    freqs[species].append(i_s)
+                    freqs[clade].append(i_s)
 
-        for species, freq in list(freqs.items()):
+        for clade, freq in list(freqs.items()):
             if len(freq) > 3:
                 LOG.warning('Skipping %s. Found more than one '
-                            'sample selection file.', species)
-                freqs.pop(species)
+                            'sample selection file.', clade)
+                freqs.pop(clade)
             elif len(freq) == 2:
                 freq += [None]
             elif len(freq) != 3:
-                LOG.error('Unexpected number of files (%s): %s.', len(freq), species)
+                LOG.error('Unexpected number of files (%s): %s.', len(freq), clade)
                 exit(0)  # <-- this is not really a zero-exit then, is it?
 
-        # Spread args over species
+        # Spread args over clades
         cmd_args = []
-        ignore_args = {'input_files', 'input_names', 'input_select', 'species'}
+        ignore_args = {'input_files', 'input_names', 'input_select', 'clade'}
 
         arg_template_d = {
             arg: value
@@ -185,13 +200,13 @@ def samestr(input_args):
             if arg not in ignore_args
         }
 
-        for species, (input_file, input_name, input_select) in freqs.items():
+        for clade, (input_file, input_name, input_select) in freqs.items():
             
             args_d = {
                 "input_file": input_file,
                 "input_name": input_name,
                 "input_select": input_select,
-                "species": species,
+                "clade": clade,
             }
 
             args_d.update(arg_template_d)

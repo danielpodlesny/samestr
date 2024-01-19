@@ -2,99 +2,101 @@ from os.path import join
 import bz2
 import pickle as pickle
 from Bio import SeqIO
+from os.path import isdir
+from os import makedirs
 
 import logging
 
-from samestr.db import TaxClade, TaxTree
+from samestr.utils import clade_path
 
+LOG = logging.getLogger(__name__)    
 
-LOG = logging.getLogger(__name__)
-
-
-def mp2db(input_args):
+def generate_db(input_args):
     """
-    Function expands and generates a database of species markers from MetaPhlAn database
-    that is required for SameStr.
+    Function expands and generates a database of clade markers 
+    from MetaPhlAn or mOTUs database that is required for SameStr.
     """
 
-    # read mpa files into dict
-    mpa_pkl = pickle.load(bz2.BZ2File(input_args['mpa_pkl']))
-    if input_args['mpa_markers'].endswith('.bz2'):
-        mpa_markers = SeqIO.to_dict(
-            SeqIO.parse(bz2.open(input_args['mpa_markers'], 'rt'), 'fasta'))
-    else:
-        mpa_markers = SeqIO.to_dict(
-            SeqIO.parse(input_args['mpa_markers'], 'fasta'))
-
-    # set species markers
-    all_species = set()
+    # set markers
+    all_clades = set()
     all_markers = {}
     n_markers = 0
 
-    # first, generate taxonomy
-    tree = TaxTree(mpa_pkl)
+    # get markers fasta
+    if input_args['markers_fasta'].endswith('.bz2'):
+        markers_fasta = SeqIO.to_dict(
+            SeqIO.parse(bz2.open(input_args['markers_fasta'], 'rt'), 'fasta'))
+    else:
+        markers_fasta = SeqIO.to_dict(
+            SeqIO.parse(input_args['markers_fasta'], 'fasta'))
 
-    for marker in mpa_pkl['markers']:
+    # get markers mapping   
+    if input_args['db_source'] == 'MetaPhlAn':
+        markers_pickle = pickle.load(bz2.BZ2File(input_args['markers_pkl']))
+    elif input_args['db_source'] == 'mOTUs':
+        markers_pickle = {"markers": {}}
 
-        # retrieve species names using last clade that is not strain (sp. or higher)
-        lineage = mpa_pkl['markers'][marker]['taxon'].split('|t__')[0]
-        clade = lineage.split('|')[-1]
+        # Populate marker_pickle based on db_mOTU_DB_CEN.fasta
+        for marker in markers_fasta:
+            clade, _ = marker.split('.', 1)
+            if marker not in markers_pickle['markers']:
+                if clade != 'NA':
+                    markers_pickle['markers'][marker] = {'clade': clade}
 
-        if clade.startswith('s__'):
-            species = clade.replace('s__', '')
-        else:
-            # mp marker tax. is not always the lowest available e.g.:
-            # k__Bacteria|p__Actinobacteria|c__Actinobacteria|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Gardnerella
-            # but only species is s__Gardnerella_vaginalis
-            node = tree.get_lineage(lineage)
-            node_names = [n.name for n in node.get_terminals()]
-            if len(node_names) == 1 and node_names[0].startswith('s__'):
-                species = node_names[0].replace('s__', '')
-            else:
-                continue
+    for marker in markers_pickle['markers']:
 
-        all_species.add(species)
+        # retrieve clade names
+        clade = markers_pickle['markers'][marker]['clade']
+        all_clades.add(clade)
         n_markers += 1
 
-        # get only selected species
-        if 'species' in input_args and input_args['species'] is not None:
-            if species not in input_args['species']:
+        # get only selected clades
+        if 'clade' in input_args and input_args['clade'] is not None:
+            if clade not in input_args['clade']:
                 continue
 
-        if species not in all_markers:
-            all_markers[species] = set()
-        all_markers[species].add(marker)
+        if clade not in all_markers:
+            all_markers[clade] = set()
+        all_markers[clade].add(marker)
 
-    LOG.debug('MetaPhlAn db contains %s species, %s markers' %
-              (len(all_species), n_markers))
+    LOG.debug('Database contains %s clades, %s markers' %
+              (len(all_clades), n_markers))
 
-    # report selected species
-    if 'species' in input_args and input_args['species'] is not None:
-        species_intersect = set(
-            input_args['species']).intersection(all_species)
-        species_diff = set(
-            input_args['species']).difference(species_intersect)
+    # report selected clades
+    if 'clade' in input_args and input_args['clade'] is not None:
+        clade_intersect = set(
+            input_args['clade']).intersection(all_clades)
+        clade_diff = set(
+            input_args['clade']).difference(clade_intersect)
 
-        LOG.debug('Selected species found in the database: %s/%s' %
-                  (len(species_intersect), len(input_args['species'])))
-        if len(species_intersect) < len(input_args['species']):
-            LOG.debug('Species not found in the database: %s' %
-                      ', '.join(species_diff))
-        all_species = species_intersect
+        LOG.debug('Selected clades found in the database: %s/%s' %
+                  (len(clade_intersect), len(input_args['clade'])))
+        if len(clade_intersect) < len(input_args['clade']):
+            LOG.debug('Clades not found in the database: %s' %
+                      ', '.join(clade_diff))
+        all_clades = clade_intersect
 
-    for species in all_species:
+    for clade in all_clades:
 
-        # set output names
-        output_base = join(input_args['output_dir'], species)
+        # set output directory and names
+        output_dir = join(input_args['output_dir'], clade_path(clade))
+
+        # Create dir if not exists
+        if not isdir(output_dir):
+            makedirs(output_dir)
+
+        output_base = output_dir + clade
         marker_filename = output_base + '.markers.fa'
         pos_filename = output_base + '.positions.txt'
         gene_filename = output_base + '.gene_file.txt'
         cmap_filename = output_base + '.contig_map.txt'
 
+        LOG.debug('Output directory: %s, %s' % (output_base, marker_filename))
+
         # check marker count
-        species_markers = sorted(all_markers[species])
-        n_markers = len(species_markers)
-        LOG.debug('Markers found for %s: %s' % (species, n_markers))
+        clade_markers = sorted(all_markers[clade])
+        n_markers = len(clade_markers)
+        LOG.debug('Markers found for %s: %s' % (clade, n_markers))
         if not n_markers:
             continue
 
@@ -105,9 +107,9 @@ def mp2db(input_args):
 
         with open(marker_filename, 'w') as marker_file:
 
-            for marker in species_markers:
-                if marker in mpa_markers:
-                    seq = mpa_markers[marker]
+            for marker in clade_markers:
+                if marker in markers_fasta:
+                    seq = markers_fasta[marker]
                     marker_len = len(seq)
 
                     contig_id = marker
@@ -130,9 +132,9 @@ def mp2db(input_args):
 
         if remove_markers:
             LOG.debug('Dropping markers for %s: %s' %
-                      (species, len(remove_markers)))
-            species_markers = [
-                m for m in species_markers if m not in remove_markers]
+                      (clade, len(remove_markers)))
+            clade_markers = [
+                m for m in clade_markers if m not in remove_markers]
 
         with open(gene_filename, 'w') as gene_file, \
                 open(cmap_filename, 'w') as cmap_file, \
@@ -141,5 +143,5 @@ def mp2db(input_args):
             pos_file.write('\n'.join(pos_data) + '\n')
             gene_file.write('\n'.join(gene_data) + '\n')
             cmap_file.write('\n'.join(
-                ['\t'.join([species, m]) for m in species_markers]) + '\n')
+                ['\t'.join([clade, m]) for m in clade_markers]) + '\n')
     return input_args

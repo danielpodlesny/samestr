@@ -1,8 +1,8 @@
 from os.path import isfile
 import logging
 
-from samestr.utils import ooSubprocess
-from samestr.summarize.read_metaphlan_data import get_metaphlan_species_profile_dict
+from samestr.utils import ooSubprocess, clade_path
+from samestr.summarize.read_taxonomic_profiles import get_clade_profile_dict
 
 LOG = logging.getLogger(__name__)
 
@@ -10,25 +10,28 @@ LOG = logging.getLogger(__name__)
 def concatenate_gene_files(arg):
     """
         concatenates gene_files and contig_maps
-        for all species of a given sample.
+        for all clades of a given sample.
     """
 
     oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
 
-    LOG.debug('Gathering: %s' % arg['mp_profile'])
-    mp_species = get_metaphlan_species_profile_dict(arg['mp_profile'])
-    if not mp_species:
-        LOG.error('No species classified: %s' % arg['bname'])
+    LOG.debug('Gathering: %s' % arg['tax_profile'])
+    clades = get_clade_profile_dict(arg['tax_profile'], db_source=arg['db_source'])
+    if not clades:
+        LOG.error('No clade classified: %s' % arg['bname'])
         return False
 
+    LOG.debug('Detected clades: %s' % ', '.join(clades))
     gene_files = []
     contig_maps = []
 
-    for species, _ in sorted(iter(mp_species.items()),
+    for clade, _ in sorted(iter(clades.items()),
                              key=lambda k_v: (k_v[1], k_v[0]),
                              reverse=True):
-        gene_fname = '%s/%s.gene_file.txt' % (arg['marker_dir'], species)
-        map_fname = '%s/%s.contig_map.txt' % (arg['marker_dir'], species)
+        gene_fname = '%s/%s.gene_file.txt' % (arg['marker_dir'], clade_path(clade, filebase = True))
+        map_fname = '%s/%s.contig_map.txt' % (arg['marker_dir'], clade_path(clade, filebase = True))
+        LOG.debug('Gene file: %s' % gene_fname)
+
         if isfile(gene_fname) and isfile(map_fname):
             gene_files.append(gene_fname)
             contig_maps.append(map_fname)

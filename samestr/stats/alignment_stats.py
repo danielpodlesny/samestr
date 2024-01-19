@@ -23,7 +23,7 @@ def aln2stats(args):
     # if exists, skip
     output_name = join(args['output_dir'], basename(args['input_file']))
     if exists(output_name):
-        LOG.info('Skipping %s. Output file exists.' % args['species'])
+        LOG.info('Skipping %s. Output file exists.' % args['clade'])
         return True
 
     # load sample order
@@ -31,11 +31,10 @@ def aln2stats(args):
         samples = file.read().strip().split('\n')
 
     LOG.info('Gathering stats for %s found in %s samples.' %
-             (args['species'], len(samples)))
+             (args['clade'], len(samples)))
 
     # load freqs
     x = load_numpy_file(args['input_file'])
-    total_species_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
 
     # conversion arrays
@@ -147,5 +146,5 @@ def aln2stats(args):
     ]
 
     # write df to file
-    ofn = '%s/%s.aln_stats.txt' % (args['output_dir'], args['species'])
+    ofn = '%s/%s.aln_stats.txt' % (args['output_dir'], args['clade'])
     df.to_csv(ofn, sep='\t', index_label=False, index=False)
