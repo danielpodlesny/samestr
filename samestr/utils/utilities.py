@@ -141,7 +141,8 @@ def collect_input_files(input_dir, accepted_extensions, recursive=False):
     accepted_extensions = {ext.strip(".") for ext in accepted_extensions}
 
     for sample_dir in dirs:
-        sample_dir = sample_dir, os.path.join(dirpath, sample_dir)
+        # sample_dir = sample_dir, os.path.join(dirpath, sample_dir)
+        sample_dir = sample_dir if sample_dir == dirpath else os.path.join(dirpath, sample_dir)
 
         for f in os.listdir(sample_dir):
             if os.isfile(f):
@@ -150,6 +151,7 @@ def collect_input_files(input_dir, accepted_extensions, recursive=False):
 
                 extension = None
                 if comp_ext:
+                    comp_ext = comp_ext[0]
                     if comp_ext in accepted_extensions:
                         extension = comp_ext
                     else:
@@ -165,7 +167,7 @@ def collect_input_files(input_dir, accepted_extensions, recursive=False):
                     if len(extensions) > 1:
                         raise ValueError(f"Found files with different extensions: {extensions}")
 
-                    sample = f[:-len(ext)]
+                    sample = f[:-len(extension)]
                     samples.setdefault(sample, []).append(os.path.join(sample_dir, f))
 
     return samples, extensions.pop() if extensions else None
