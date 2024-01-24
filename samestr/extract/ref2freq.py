@@ -307,7 +307,7 @@ def blast_markers_against_references(args, clade_markers):
 
     if not contigs:
         LOG.error('Failed to aggregate contigs.')
-        exit(0)
+        exit(1)
 
     blastdb_prefix = oosp.ftmp('genome_extract_db_%s' % (random.random()))
     if glob('%s*' % blastdb_prefix):
@@ -463,7 +463,7 @@ def seqs2freqs(args, seqs, marker_pos):
 
     # write alignment fasta
     LOG.info('Saving alignment.')
-    with open(output_base + '.msa.fa', 'w') as out:
+    with gzip.open(output_base + '.msa.fa', 'wt') as out:
         AlignIO.write(seqs_msa, out, 'fasta')
 
     return True
@@ -479,7 +479,7 @@ def ref2freq(args):
 
     # set clade, tmp_dir, ofn, check output exists
     args['clade_marker_name'] = args['clade'] + '.markers'
-    args['clade_marker'] = args['marker_dir'] + '/' + clade_path(args['clade'], filebase = False) + args['clade_marker_name'] + '.fa'
+    args['clade_marker'] = args['marker_dir'] + '/' + clade_path(args['clade'], filebase = False) + args['clade_marker_name'] + '.fa.gz'
     
     if args['tmp_dir'] == '':
         args['tmp_dir'] = args['output_dir']
@@ -488,7 +488,7 @@ def ref2freq(args):
     clade_markers = {}
     clade_markers_ordered = []
     args['clade_markers_total_length'] = 0
-    for rec in SeqIO.parse(open(args['clade_marker'], 'r'), 'fasta'):
+    for rec in SeqIO.parse(gzip.open(args['clade_marker'], 'rt'), 'fasta'):
         clade_markers[rec.id] = rec
         clade_markers_ordered.append(rec.id)
         args['clade_markers_total_length'] += len(rec)

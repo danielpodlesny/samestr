@@ -2,16 +2,19 @@
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
 
 
-from sys import stderr
+from sys import stderr, argv
 from os.path import basename, dirname, realpath, isdir, isfile
 from os import environ, makedirs
+from datetime import datetime
 import logging
 import logging.config
 
-from samestr.utils.utilities import list_group_by_basename, collect_input_files
+from samestr import __version__
+from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
 from samestr.utils.ooSubprocess import serialize, parallelize_async
 from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
     set_output_structure
+from samestr.utils.parse_args import read_params
 
 from samestr.convert import sam2bam, concatenate_gene_files, bam2freq
 from samestr.extract import ref2freq
@@ -22,8 +25,6 @@ from samestr.compare import compare
 from samestr.summarize import summarize
 from samestr.db import generate_db
 
-from samestr.utils.parse_args import read_params
-
 
 SAMESTR_DIR = dirname(realpath(__file__))
 CONVERT_DIR = SAMESTR_DIR + '/convert/'
@@ -33,6 +34,43 @@ environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 
 def samestr(input_args):
     """Main function for SAMESTR."""
+    
+    ## Log command     
+    samestr_cmd = {
+            'version': f'{__version__}',
+            'command': ' '.join(argv),
+            'date-start': '%s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    ## Get database manifest files
+    if input_args['command'] == 'db':
+        input_args['marker_dir'] = input_args['output_dir']
+    db_existed, db_manifest, db_clades, db_taxonomy = load_samestr_db_manifest(input_args['marker_dir'])
+
+    #### Print Info
+    if db_existed:
+        LOG.info('Processing data with existing SameStr database based on %s, %s' % (db_manifest['database']['name'], db_manifest['database']['version']))
+        LOG.info('Database contains %s files, %s clades, %s markers, totalling %s positions.' % (db_manifest['records']['total_n_files'],
+                                                                                              db_manifest['records']['total_n_clades'],
+                                                                                              db_manifest['records']['total_n_markers'],
+                                                                                              db_manifest['records']['total_n_positions']
+                                                                                              ))
+    elif not db_existed and input_args['command'] != 'db':
+        LOG.error('Aborting. Could not parse database at %s' % input_args['output_dir'])
+        exit(1)
+
+    #### Attach to input var, don't update manifest yet.
+    input_args['samestr_db'] = {
+        'db_existed': db_existed,
+        'db_manifest': db_manifest,
+        'db_clades': db_clades,
+        'db_taxonomy': db_taxonomy,
+        'samestr_cmd': samestr_cmd
+    } 
+
+    #### TODO: check db integrity if requested and db existed   
+    
+    ## Check input file extensions
     accepted_extensions_dict = {
         'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
         'convert': ['.sam', '.sam.bz2', '.bam'],
@@ -44,16 +82,11 @@ def samestr(input_args):
         'summarize': ['']
     }
 
-    ## preprocess input/output files & extensions and map to commands
-    ####
+    #### preprocess input/output files & extensions and map to commands
     accepted_extensions = accepted_extensions_dict[input_args['command']]
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
             [input_args['markers_fasta']], accepted_extensions)
-        
-        if input_args['db_source'] == 'MetaPhlAn' and 'markers_pkl' not in input_args:
-            LOG.error('`markers-pkl` not provided. Required when using MetaPhlAn as the source database.')
-            exit(0)
 
     elif input_args['command'] not in ('summarize'):
         input_args['input_extension'] = get_uniform_extension(
@@ -63,28 +96,28 @@ def samestr(input_args):
         file_count = len(input_args['input_files'])
         LOG.debug('Number of input files: %s', file_count)
 
-    # check make output dir
+    ## check make output dir
     if not isdir(input_args['output_dir']):
         makedirs(input_args['output_dir'])
 
+    ################################
     ## process individual commands
-    ####
     if input_args['command'] == 'db':
+        
+        if not isdir(input_args['output_dir'] + '/db_markers/'):
+            makedirs(input_args['output_dir'] + '/db_markers/')
 
-        # expand and generate db from markers/pkl files
+        # expand and generate db from markers/info files
         generate_db(input_args)
 
-    elif input_args['command'] == 'extract':
-        cmd_args = serialize(ref2freq, [input_args])
-
     elif input_args['command'] == 'convert':
+        # TODO: offer/fix dir-based input
         # input_args['input_files'], input_args['input_extension'] = collect_input_files(
         #     input_args['input_dir'],
         #     accepted_extensions,
         #     recursive=input_args["recursive_input"]
         # )
         
-        # TODO: is this still needed?
         input_args['input_files'] = list_group_by_basename(
             input_args['input_files'],
             cut_name_endings=[input_args['input_extension']])
@@ -100,6 +133,9 @@ def samestr(input_args):
         
         cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])        
         cmd_args = parallelize_async(bam2freq, cmd_args, input_args['nprocs'])
+
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
 
     elif input_args['command'] == 'merge':
 
@@ -182,7 +218,7 @@ def samestr(input_args):
                 freq += [None]
             elif len(freq) != 3:
                 LOG.error('Unexpected number of files (%s) for [%s]: %s' % (clade, ', '.join(freq)))
-                exit(0)
+                exit(1)
 
         # Spread args over clades
         cmd_args = []
@@ -221,6 +257,21 @@ def samestr(input_args):
 
     elif input_args['command'] == 'summarize':
         cmd_args = serialize(summarize, [input_args])
+    
+    # write current command to logfile
+    samestr_cmd['date-end'] = '%s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logfile_fn = input_args['output_dir'] + '/command_log.json'
+    if isfile(logfile_fn):
+        logfile = read_json(logfile_fn)
+        iter = max([int(k) for k in logfile.keys()]) + 1
+    else:
+        logfile = {}
+        iter = 1
+    logfile[iter] = samestr_cmd
+    write_json(logfile_fn, logfile)
+    LOG.info('Done.')
+
+
 
 citations = {
 'Text' :  

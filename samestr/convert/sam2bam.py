@@ -62,7 +62,7 @@ def sam2bam(arg):
 
         else:
             LOG.error('Error parsing input sam/bam files: [%s/%s]' % (arg['sam'], arg['bam']))
-            exit(0)
+            exit(1)
 
         # index
         if not isfile(arg['sorted_bam'] + '.bai'):
