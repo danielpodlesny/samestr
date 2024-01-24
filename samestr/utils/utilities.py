@@ -137,23 +137,41 @@ def collect_input_files(input_dir, accepted_extensions, recursive=False):
     extensions = set()
     accepted_extensions = {ext.strip(".") for ext in accepted_extensions}
 
-    for dirpath, dirs, files in os.walk(input_dir):
-        if not recursive and dirpath != input_dir:
-            continue
+    for sample_dir, _, files in os.walk(input_dir):
+         
+        for fn in files:
+            extension = None
 
-        for f in files:
-            full_path = os.path.join(dirpath, f)
-            if os.path.isfile(full_path):
-                ext = f.split('.')[-1]
-                if ext in accepted_extensions:
-                    extensions.add(ext)
-                    sample = f[:-len(ext) - 1]  # Remove extension and dot
-                    samples.setdefault(sample, []).append(full_path)
+            # accepted extensions can be single ('.fa') or composite ('.fa.gz')
+            file_extensions = re.split(r"\.", fn)[-2:]
+            if len(file_extensions) >= 1:
+                # -> check last or last two suffixes                
+                if file_extensions[-1] in accepted_extensions:
+                    # check rightmost suffix
+                    extension = file_extensions[-1]
+                elif len(file_extensions) == 2:
+                    # else check concatenation of two rightmost suffixes
+                    ext = ".".join(file_extensions)
+                    if ext in accepted_extensions:
+                        extension = ext
 
-    if len(extensions) > 1:
-        raise ValueError(f"Found files with different extensions: {extensions}")
+            if extension is not None:
+                # if this is a file with a valid extension
+                extension = f".{extension}"
+                extensions.add(extension)
+                if len(extensions) > 1:
+                    # we only allow one extension per input set
+                    # error out if more than one found
+                    raise ValueError(f"Found files with different extensions: {extensions}")
+                # strip extension off filename to obtain sample id
+                sample = fn[:-len(extension)]
+                # collect file
+                samples.setdefault(sample, []).append(os.path.join(sample_dir, fn))
 
-    return samples, "." + next(iter(extensions)) if extensions else None
+        if not recursive:
+            break
+
+    return samples, (list(extensions) + [None])[0]
 
 def read_json(fpath):
     with open(fpath, 'r') as file:

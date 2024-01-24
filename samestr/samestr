@@ -8,6 +8,8 @@ from os import environ, makedirs
 from datetime import datetime
 import logging
 import logging.config
+import pathlib
+
 
 from samestr import __version__
 from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
@@ -25,6 +27,8 @@ from samestr.compare import compare
 from samestr.summarize import summarize
 from samestr.db import generate_db
 
+from samestr.utils.parse_args import read_params
+from samestr.utils.citations import citations
 
 SAMESTR_DIR = dirname(realpath(__file__))
 CONVERT_DIR = SAMESTR_DIR + '/convert/'
@@ -98,7 +102,9 @@ def samestr(input_args):
 
     ## check make output dir
     if not isdir(input_args['output_dir']):
-        makedirs(input_args['output_dir'])
+        pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
+
+    input_clade = input_args.get("species")
 
     ################################
     ## process individual commands
@@ -143,71 +149,73 @@ def samestr(input_args):
 
         # group input files by clade
         for file_path in input_args['input_files']:
-            file = basename(file_path)
-            clade = file.split('.')[0]
+            fn = basename(file_path)
+            clade = fn.split('.')[0]
 
             # append list if file has been merged before
             sample_names = file_path.replace(
-                input_args['input_extension'], '.names.txt')
+                input_args['input_extension'], '.names.txt'
+            )
             if isfile(sample_names):
                 with open(sample_names, 'r', encoding="utf8") as s_n:
                     sample = s_n.read().strip().split('\n')
             else:
-                sample = file.split(input_args['input_extension'])[
-                    0].replace(f'{clade}.', '')
+                sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
             # skip if not in selected clade
-            if input_args['clade']:
-                if clade not in input_args['clade']:
-                    continue
+            if input_clade is not None and clade not in input_clade:
+                continue
 
+            clade_file_dict.setdefault(clade, []).append([sample, file_path])
             if clade not in clade_file_dict:
                 clade_file_dict[clade] = [[sample, file_path]]
             else:
                 clade_file_dict[clade] += [[sample, file_path]]
 
-        cmd_args = []
-        for idx, clade in enumerate(clade_file_dict.keys()):
-            cmd_args.append({})
-            cmd_args[idx]['clade'] = clade
-            cmd_args[idx]['input_files'] = clade_file_dict[clade]
-            cmd_args[idx]['output_dir'] = input_args['output_dir']
+        cmd_args = [
+               {
+                    "clade": clade,
+                    "input_files": files,
+                    "output_dir": input_args["output_dir"],
+               }
+               for clade, files in clade_file_dict.items()
+        ]        
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] in ['filter', 'stats', 'compare']:
 
-        # For each clade: group freqs with resp names
-        freqs = {}
-        for i_f in input_args['input_files']:
-            clade = basename(i_f).split(input_args['input_extension'])[0]
-            freqs[clade] = [i_f]
+        # For each species: group freqs with resp names
+        freqs = {
+            basename(fn).split(input_args['input_extension'])[0]: [fn]
+            for fn in input_args['input_files']
+        }
 
-        for i_n in input_args['input_names']:
-            clade = basename(i_n).split('.names.txt')[0]
+        for name in input_args['input_names']:
+            clade = basename(name).split('.names.txt')[0]
             if clade not in freqs:
                 LOG.warning('Skipping %s. Found name file '
                             'but no SNV profile.', clade)
             else:
-                freqs[clade] += [i_n]
+                freqs[clade].append(name)
 
         for clade, freq in list(freqs.items()):
             if len(freq) != 2:
                 LOG.warning('Skipping [%s]. Found SNV profile '
                             'but no name file: %s' % (clade, ', '.join(freq)))
                 freqs.pop(clade)
-            if 'clade' in input_args and input_args['clade'] is not None:
-                if clade not in input_args['clade']:
-                    freqs.pop(clade)
+            elif input_clade is not None and clade not in input_clade:
+                freqs.pop(clade)
 
         # attach sample selection file
         if 'samples_select' in input_args:
             for i_s in input_args['samples_select']:
                 clade = basename(i_s).split('.select.txt')[0]
                 if clade not in freqs:
-                    LOG.warning('Skipping [%s]. Found selection file '
-                                'but no SNV profile: %s' % (clade, ', '.join(freq)))
-                    freqs[clade] += [i_s]
+                    LOG.warning('Skipping %s. Found selection file '
+                                'but no SNV profile.', clade)
+                else:
+                    freqs[clade].append(i_s)
 
         for clade, freq in list(freqs.items()):
             if len(freq) > 3:
@@ -217,26 +225,32 @@ def samestr(input_args):
             elif len(freq) == 2:
                 freq += [None]
             elif len(freq) != 3:
-                LOG.error('Unexpected number of files (%s) for [%s]: %s' % (clade, ', '.join(freq)))
-                exit(1)
+                LOG.error('Unexpected number of files (%s): %s.', len(freq), clade)
+                exit(0)  
 
         # Spread args over clades
         cmd_args = []
-        for idx, (clade, (input_file, input_name,
-                            input_select)) in enumerate(freqs.items()):
-            cmd_args.append({})
-            cmd_args[idx]['input_file'] = input_file
-            cmd_args[idx]['input_name'] = input_name
-            cmd_args[idx]['input_select'] = input_select
-            cmd_args[idx]['clade'] = clade
+        ignore_args = {'input_files', 'input_names', 'input_select', 'clade'}
 
-            for arg in input_args:
-                if arg in [
-                    'input_files', 'input_names', 'input_select', 'clade'
-                ]:
-                    continue
-                cmd_args[idx][arg] = input_args[arg]
+        arg_template_d = {
+            arg: value
+            for arg, value in input_args.items()
+            if arg not in ignore_args
+        }
 
+        for clade, (input_file, input_name, input_select) in freqs.items():
+            
+            args_d = {
+                "input_file": input_file,
+                "input_name": input_name,
+                "input_select": input_select,
+                "clade": clade,
+            }
+
+            args_d.update(arg_template_d)
+
+            cmd_args.append(args_d)
+            
         if input_args['command'] == 'filter':
             LOG.info('Filtering files: %s', len(freqs))
 
@@ -273,73 +287,10 @@ def samestr(input_args):
 
 
 
-citations = {
-'Text' :  
-"""
-Podlesny D, Arze C, Dörner E, Verma S, Dutta S, Walter J, Fricke WF. 
-Metagenomic strain detection with SameStr: 
-identification of a persisting core gut microbiota transferable by fecal transplantation. 
-Microbiome. 2022 Mar 25;10(1):53. doi: 10.1186/s40168-022-01251-w. 
-PMID: 35337386; PMCID: PMC8951724.
-""",
-'BibTex' : 
-"""
-@article{podlesny2022metagenomic,
-title={Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation},
-author={Podlesny, Daniel and Arze, Cesar and D{\"o}rner, Elisabeth and Verma, Sandeep and Dutta, Sudhir and Walter, Jens and Fricke, W Florian},
-journal={Microbiome},
-volume={10},
-number={1},
-pages={1--15},
-year={2022},
-publisher={BioMed Central}
-}
-""",
-'RIS' : 
-"""
-TY  - JOUR
-AU  - Podlesny, Daniel
-AU  - Arze, Cesar
-AU  - Dörner, Elisabeth
-AU  - Verma, Sandeep
-AU  - Dutta, Sudhir
-AU  - Walter, Jens
-AU  - Fricke, W. Florian
-PY  - 2022
-DA  - 2022/03/25
-TI  - Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
-JO  - Microbiome
-SP  - 53
-VL  - 10
-IS  - 1
-AB  - The understanding of how microbiomes assemble, function, and evolve requires metagenomic tools that can resolve microbiota compositions at the strain level. However, the identification and tracking of microbial strains in fecal metagenomes is challenging and available tools variably classify subspecies lineages, which affects their applicability to infer microbial persistence and transfer.
-SN  - 2049-2618
-UR  - https://doi.org/10.1186/s40168-022-01251-w
-DO  - 10.1186/s40168-022-01251-w
-ID  - Podlesny2022
-ER  - 
-""",
-'DOI' : 'https://doi.org/10.1186/s40168-022-01251-w',
-'Endnote' : 
-"""
-%0 Journal Article
-%T Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
-%A Podlesny, Daniel
-%A Arze, Cesar
-%A Dörner, Elisabeth
-%A Verma, Sandeep
-%A Dutta, Sudhir
-%A Walter, Jens
-%A Fricke, W Florian
-%J Microbiome
-%V 10
-%N 1
-%P 1-15
-%@ 2049-2618
-%D 2022
-%I BioMed Central          
-"""
-}
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
+
+
 
 if __name__ == "__main__":
     args = read_params()

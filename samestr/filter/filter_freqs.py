@@ -48,18 +48,20 @@ def trunc_marker_ends(marker_pos, trunc_len):
              truncated given `marker_pos` and `trunc_len`.
     """
     trunc_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
+    marker_len_cutoff = 2 * trunc_len
+    for marker, (marker_start, marker_end, marker_len) in marker_pos.items():
 
-        # drop entirely if trunc_len * 2 longer than marker:
-        if trunc_len * 2 > marker_len:
+        if marker_len_cutoff > marker_len:
+            # drop entirely if trunc_len * 2 longer than marker:
             LOG.info('Marker %s shorter than total `trunc_len`' % marker)
-            trunc_pos = trunc_pos.union(list(range(marker_start, marker_end)))
-            continue
+            trunc_pos.update(range(marker_start, marker_end))
+        else:
+            # set trunc positions
+            trunc_pos.update(
+                range(marker_start, marker_start + trunc_len),
+                range(marker_start, marker_start + trunc_len),
+            )
 
-        # set trunc positions
-        trunc_pos_start = list(range(marker_start, marker_start + trunc_len))
-        trunc_pos_end = list(range(marker_end - trunc_len, marker_end))
-        trunc_pos = trunc_pos.union(trunc_pos_start, trunc_pos_end)
     return trunc_pos
 
 
@@ -70,10 +72,10 @@ def remove_marker_pos(marker_pos, remove_markers=None):
              removed given `remove_markers`.
     """
     remove_pos = set()
-    for marker, (marker_start, marker_end, marker_len) in list(marker_pos.items()):
-        if marker in remove_markers:
-            remove_pos = remove_pos.union(
-                list(range(marker_start, marker_end)))
+    if remove_markers:
+        for marker, (marker_start, marker_end, _) in marker_pos.items():
+            if marker in remove_markers:
+                remove_pos.update(range(marker_start, marker_end))
     return remove_pos
 
 
@@ -97,11 +99,10 @@ def z_coverage(x, covered_pos_only=False):
 
 
 def clade_min_samples(args, n_samples):
-    if args['clade_min_samples']:
-        if n_samples < args['clade_min_samples']:
-            LOG.debug('Skipping %s since there are fewer than %s samples.' %
-                      (args['clade'], args['clade_min_samples']))
-            return False
+    if args['clade_min_samples'] and n_samples < args['clade_min_samples']:
+        LOG.debug('Skipping %s since there are fewer than %s samples.' %
+                    (args['clade'], args['clade_min_samples']))
+        return False
     return True
 
 
@@ -164,7 +165,7 @@ def filter_freqs(args):
         # x has to be float (extract -> float not int)
         x[:, list(trunc_pos), :] = np.nan
 
-        removed_pos = removed_pos.union(trunc_pos)
+        removed_pos.update(trunc_pos)
 
     # 1.2 Keep OR Remove markers
     if args['marker_keep'] or args['marker_remove']:
@@ -190,7 +191,7 @@ def filter_freqs(args):
                   round(len(remove_pos) / total_clade_markers_size, 1), 
                   cmd))
         x[:, list(remove_pos), :] = np.nan
-        removed_pos = removed_pos.union(remove_pos)
+        removed_pos.update(remove_pos)
 
     # 2 Filter Sample Variants [per Position]
 
