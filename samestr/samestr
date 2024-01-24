@@ -116,6 +116,9 @@ def samestr(input_args):
         # expand and generate db from markers/info files
         generate_db(input_args)
 
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
+
     elif input_args['command'] == 'convert':
         # TODO: offer/fix dir-based input
         # input_args['input_files'], input_args['input_extension'] = collect_input_files(
@@ -284,12 +287,6 @@ def samestr(input_args):
     logfile[iter] = samestr_cmd
     write_json(logfile_fn, logfile)
     LOG.info('Done.')
-
-
-
-    elif input_args['command'] == 'extract':
-        cmd_args = serialize(ref2freq, [input_args])
-
 
 
 if __name__ == "__main__":
