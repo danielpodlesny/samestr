@@ -4,6 +4,7 @@ import subprocess
 import argparse
 import re
 from collections import defaultdict
+import gzip 
 
 parser = argparse.ArgumentParser(
     description='This script is for parsing the BAM file and look for reads overlapping with the target genes and report the pileup.')
@@ -68,7 +69,7 @@ def parse_gene(file):
         dict: a dictionary containing the gene name as key and the contig, start, end, strand, and sequence as values
     """
     data = {}
-    with open(file, "r") as f:
+    with gzip.open(file, "rt") as f:
         for line in f:
             line = line.strip()
             contig_id, gene_id, begin, end, strand, seq = line.split("\t")

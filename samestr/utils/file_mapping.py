@@ -52,8 +52,8 @@ def set_output_structure(args):
             arg['sorted_bam'] = sample_dir + n + '.bam'
 
             ## bam2freq
-            arg['gene_file'] = sample_dir + n + '.gene_file.txt'
-            arg['contig_map'] = sample_dir + n + '.contig_map.txt'
+            arg['gene_file'] = sample_dir + n + '.gene_file.txt.gz'
+            arg['contig_map'] = sample_dir + n + '.contig_map.txt.gz'
             arg['kp'] = sample_dir + n + '.kp.txt'
             arg['np'] = sample_dir
 
@@ -156,7 +156,7 @@ def clade_path(name, filebase = False):
             break
 
     # Combine the segments to form the path
-    pseudo_path = '/'.join(segments) + '/'
+    pseudo_path = '/db_markers/' + '/'.join(segments) + '/'
 
     # Add name as file basis
     if filebase:

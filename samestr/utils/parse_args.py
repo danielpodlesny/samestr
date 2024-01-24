@@ -57,6 +57,55 @@ def read_params():
         help='Use one of the following commands for different tasks:',)
     # subparser.required = True  # http://bugs.python.org/issue9253#msg186387
 
+    # DB
+    db_parser = subparser.add_parser(
+        'db',
+        formatter_class=ap.ArgumentDefaultsHelpFormatter,
+        help='Make database from MetaPhlAn or mOTUs markers.')
+
+    # input
+    db_input = db_parser.add_argument_group('Input arguments')
+    db_input.add_argument(
+        '--db-version',
+        required=True,
+        default='PATH',
+        type=str,
+        help='Path to version file of database (`mpa_latest` for MetaPhlAn, or `db_mOTU_versions` for mOTUs.)'
+    )   
+    db_input.add_argument(
+        '--markers-fasta',
+        required=True,
+        metavar='FASTA',
+        type=str,
+        help='Markers fasta file (MetaPhlAn [mpa_vJan21_CHOCOPhlAnSGB_202103.fna or higher], or mOTUs [db_mOTU_DB_CEN.fasta]'
+    )
+    db_input.add_argument(
+        '--markers-info',
+        required=True,
+        metavar='PATH',
+        nargs='+',
+        type=str,
+        help='Path(s) to marker info files. For MetaPhlAn should be MetaPhlAn pickle file (mpa_vJan21_CHOCOPhlAnSGB_202103.pkl or higher). For mOTUs, should be both `db_mOTU_taxonomy_meta-mOTUs.tsv` and  `db_mOTU_taxonomy_ref-mOTUs.tsv`.')
+    db_input.add_argument(
+        '--clade',
+        required=False,
+        metavar='CLADE',
+        nargs='+',
+        type=str,
+        help='Clade to process from input files. Processing all if not specified. '
+             'Names must correspond to the taxonomy of the respective database '
+             '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
+
+    # output
+    db_output = db_parser.add_argument_group('Output arguments')
+    db_output.add_argument(
+        '--output-dir',
+        required=False,
+        metavar='DIR',
+        default='out_db/',
+        type=str,
+        help='Path to output directory.')
+
     # CONVERT
     convert_parser = subparser.add_parser(
         'convert',
@@ -79,6 +128,17 @@ def read_params():
         default='tmp/',
         type=str,
         help='Path to temporary directory')
+    convert_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
+    convert_general.add_argument(
+        '--db-force',
+        action='store_true',
+        help='Force execution, even when database version is not an exact match.'
+    ) 
 
     # input
     convert_input = convert_parser.add_argument_group('Input arguments')
@@ -157,21 +217,6 @@ def read_params():
         help='File extension of taxonomic profiles.'
     )
     convert_alignment.add_argument(
-        '--db-source',
-        required=True,
-        default='MetaPhlAn',
-        choices=['MetaPhlAn', 'mOTUs'],
-        type=str,
-        help='Source of database input files (MetaPhlAn [default] or mOTUs.)'
-    )    
-    convert_alignment.add_argument(
-        '--marker-dir',
-        required=False,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn or mOTUs clade marker database.')
-    convert_alignment.add_argument(
         '--min-base-qual',
         required=False,
         metavar='INT',
@@ -216,6 +261,12 @@ def read_params():
         default='tmp/',
         type=str,
         help='Path to temporary directory')
+    extract_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
 
     # input
     extract_input = extract_parser.add_argument_group('Input arguments')
@@ -235,13 +286,6 @@ def read_params():
         help='Clade to process from input files. '
              'Names must correspond to the taxonomy of the respective database '
              '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
-    extract_input.add_argument(
-        '--marker-dir',
-        required=True,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn or mOTUs marker database.')
 
     # output
     extract_output = extract_parser.add_argument_group('Output arguments')
@@ -298,6 +342,12 @@ def read_params():
         default=1,
         type=int,
         help='The number of processing units to use.')
+    merge_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
 
     # input
     merge_input = merge_parser.add_argument_group('Input arguments')
@@ -331,7 +381,7 @@ def read_params():
         help='Clade to process from input files. Processing all if not specified. '
              'Names must correspond to the taxonomy of the respective database '
              '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
-
+    
     # FILTER
     filter_parser = subparser.add_parser(
         'filter',
@@ -347,6 +397,12 @@ def read_params():
         metavar='INT',
         type=int,
         help='The number of processing units to use.')
+    filter_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
 
     # input
     filter_input = filter_parser.add_argument_group('Input arguments')
@@ -418,13 +474,6 @@ def read_params():
     # markers
     filter_markers = filter_parser.add_argument_group(
         'Clade Marker arguments')
-    filter_markers.add_argument(
-        '--marker-dir',
-        required=True,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn or mOTUs clade marker database.')
     filter_markers.add_argument(
         '--marker-remove',
         required=False,
@@ -535,6 +584,61 @@ def read_params():
         type=float,
         help='Remove positions covered by fewer than `global-pos-min-f-vcov` fraction of samples.')
 
+    # STATS
+    stats_parser = subparser.add_parser(
+        'stats',
+        formatter_class=ap.ArgumentDefaultsHelpFormatter,
+        help='Report alignment statistics.')
+    # general
+    stats_general = stats_parser.add_argument_group('General arguments')
+    stats_general.add_argument(
+        '--nprocs',
+        required=False,
+        default=1,
+        metavar='INT',
+        type=int,
+        help='The number of processing units to use.')
+    stats_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
+
+    # input
+    stats_input = stats_parser.add_argument_group('Input arguments')
+    stats_input.add_argument(
+        '--input-files',
+        required=True,
+        nargs='+',
+        metavar='NPY',
+        default=[],
+        type=str,
+        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
+    stats_input.add_argument(
+        '--input-names',
+        required=True,
+        nargs='+',
+        metavar='FILEPATH',
+        default=[],
+        type=str,
+        help='Path to input name files.')
+
+    # output
+    stats_output = stats_parser.add_argument_group('Output arguments')
+    stats_output.add_argument(
+        '--output-dir',
+        required=False,
+        metavar='DIR',
+        default='marker_db/',
+        type=str,
+        help='Path to output directory.')
+    stats_output.add_argument(
+        '--dominant-variants',
+        required=False,
+        action='store_true',
+        help='Report statistics only for dominant variants as obtained from consensus call.')
+    
     # compare subparser
     compare_parser = subparser.add_parser(
         'compare',
@@ -549,6 +653,12 @@ def read_params():
         metavar='INT',
         type=int,
         help='The number of processing units to use.')
+    compare_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
 
     # input
     compare_input = compare_parser.add_argument_group('Input arguments')
@@ -600,6 +710,15 @@ def read_params():
         'summarize',
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Summarize Taxonomic Co-Occurrence.')
+    
+    # general
+    summarize_general = summarize_parser.add_argument_group('General arguments')
+    summarize_general.add_argument(
+        '--marker-dir',
+        required=True,
+        metavar='DIR',
+        type=str,
+        help='Path to MetaPhlAn or mOTUs clade marker database.')
 
     # input
     summarize_input = summarize_parser.add_argument_group('Input arguments')
@@ -657,103 +776,5 @@ def read_params():
         type=float,
         help='Minimum pairwise alignment similarity to call shared strains.'
     )
-
-    # STATS
-    stats_parser = subparser.add_parser(
-        'stats',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Report alignment statistics.')
-    # general
-    stats_general = stats_parser.add_argument_group('General arguments')
-    stats_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-
-    # input
-    stats_input = stats_parser.add_argument_group('Input arguments')
-    stats_input.add_argument(
-        '--input-files',
-        required=True,
-        nargs='+',
-        metavar='NPY',
-        default=[],
-        type=str,
-        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
-    stats_input.add_argument(
-        '--input-names',
-        required=True,
-        nargs='+',
-        metavar='FILEPATH',
-        default=[],
-        type=str,
-        help='Path to input name files.')
-
-    # output
-    stats_output = stats_parser.add_argument_group('Output arguments')
-    stats_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to output directory.')
-    stats_output.add_argument(
-        '--dominant-variants',
-        required=False,
-        action='store_true',
-        help='Report statistics only for dominant variants as obtained from consensus call.')
-
-    # DB
-    db_parser = subparser.add_parser(
-        'db',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Make database from MetaPhlAn or mOTUs markers.')
-
-    # input
-    db_input = db_parser.add_argument_group('Input arguments')
-    db_input.add_argument(
-        '--db-source',
-        required=False,
-        default='MetaPhlAn',
-        choices=['MetaPhlAn', 'mOTUs'],
-        type=str,
-        help='Source of database input files (MetaPhlAn [default] or mOTUs.)'
-    )    
-    db_input.add_argument(
-        '--markers-fasta',
-        required=True,
-        metavar='FASTA',
-        type=str,
-        help='Markers fasta file (MetaPhlAn [mpa_vJan21_CHOCOPhlAnSGB_202103.fna or higher], or mOTUs [db_mOTU_DB_CEN.fasta]'
-    )
-    db_input.add_argument(
-        '--markers-pkl',
-        required=False,
-        metavar='MPA_PKL',
-        type=str,
-        help='MetaPhlAn mpa.pkl file. (only required for MetaPhlAn.)')
-    db_input.add_argument(
-        '--clade',
-        required=False,
-        metavar='CLADE',
-        nargs='+',
-        type=str,
-        help='Clade to process from input files. Processing all if not specified. '
-             'Names must correspond to the taxonomy of the respective database '
-             '[e.g. t__SGB10068 for MetaPhlAn or ref_mOTU_v3_00095 for mOTUs]')
-
-    # output
-    db_output = db_parser.add_argument_group('Output arguments')
-    db_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_db/',
-        type=str,
-        help='Path to output directory.')
 
     return vars(parser.parse_args())

@@ -92,7 +92,7 @@ The module **`samestr db`** has to be used after installation of SameStr in orde
 ### Usage example
 ```
 samestr db \
---markers-pkl metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.pkl \
+--markers-info metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.pkl \
 --mpa-markers metaphlan_db/mpa_vJan21_CHOCOPhlAnSGB_202103.fna.bz2 \
 --output-dir marker_db/
 ```
