@@ -310,12 +310,12 @@ def filter_freqs(args):
 
         if args['keep_poly']:
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) == 0
-            LOG.info('Zeroing %s [%s%%] global monomorphic positions.' %
+            LOG.info('Zeroing %s [%s%%] global monomorphic positions (`--keep-poly`).' %
                      (sum(remove_pos),
                       round(sum(remove_pos) / total_clade_markers_size, 1)))
         elif args['keep_mono']:
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) > 0
-            LOG.info('Zeroing %s [%s%%] global polymorphic positions.' %
+            LOG.info('Zeroing %s [%s%%] global polymorphic positions (`--keep-mono`).' %
                      (sum(remove_pos),
                       round(sum(remove_pos) / total_clade_markers_size, 1)))
 
