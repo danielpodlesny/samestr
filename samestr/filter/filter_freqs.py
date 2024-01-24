@@ -201,8 +201,8 @@ def filter_freqs(args):
         x[remove_pos] = 0
         LOG.info(
             'Zeroing %s variants [%s%%] covered by too few reads. (cmd: `--sample-var-min-n-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / (total_clade_markers_size*4), 1)))
 
     # 2.2 min-fcov
     if args['sample_var_min_f_vcov']:
@@ -212,8 +212,8 @@ def filter_freqs(args):
         x[remove_pos] = 0
         LOG.info(
             'Zeroing %s variants [%s%%] covered by too few reads. (cmd: `--sample-var-min-f-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / (total_clade_markers_size*4), 1)))
 
     # 3 Filter Positions [per Sample]
 
@@ -223,8 +223,8 @@ def filter_freqs(args):
         x[remove_pos, :] = np.nan
         LOG.info(
             'Zeroing %s positions [%s%%] covered by too few reads. (cmd: `--sample-pos-min-n-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 3.2 sd-vcov [of covered positions only]
     if args['sample_pos_min_sd_vcov']:
@@ -233,8 +233,8 @@ def filter_freqs(args):
         x[remove_pos, :] = np.nan
         LOG.info(
             'Zeroing %s positions [%s%%] deviating from the mean coverage. (cmd: `--sample-pos-min-sd-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 4 Filter Samples
 
@@ -291,15 +291,15 @@ def filter_freqs(args):
                                 axis=0) < args['global_pos_min_n_vcov']
             LOG.info(
             'Zeroing %s global positions [%s%%] covered by too few samples. (cmd: `--global-pos-min-n-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / total_clade_markers_size, 1)))
         elif args['global_pos_min_f_vcov']:
             remove_pos = (np.sum(coverage(x) > 0, axis=0) /
                           x.shape[0]) < args['global_pos_min_f_vcov']
             LOG.info(
             'Zeroing %s global positions [%s%%] covered by too few samples. (cmd: `--global-pos-min-f-vcov`)' %
-            (sum(remove_pos),
-             round(sum(remove_pos) / total_clade_markers_size, 1)))
+            (np.sum(remove_pos),
+             round(np.sum(remove_pos) / total_clade_markers_size, 1)))
         
         x[:, remove_pos, :] = np.nan
         removed_pos = set([pos for pos, b in enumerate(remove_pos)
@@ -311,13 +311,13 @@ def filter_freqs(args):
         if args['keep_poly']:
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) == 0
             LOG.info('Zeroing %s [%s%%] global monomorphic positions (`--keep-poly`).' %
-                     (sum(remove_pos),
-                      round(sum(remove_pos) / total_clade_markers_size, 1)))
+                     (np.sum(remove_pos),
+                      round(np.sum(remove_pos) / total_clade_markers_size, 1)))
         elif args['keep_mono']:
             remove_pos = ((x > 0).sum(axis=2) > 1).sum(axis=0) > 0
             LOG.info('Zeroing %s [%s%%] global polymorphic positions (`--keep-mono`).' %
-                     (sum(remove_pos),
-                      round(sum(remove_pos) / total_clade_markers_size, 1)))
+                     (np.sum(remove_pos),
+                      round(np.sum(remove_pos) / total_clade_markers_size, 1)))
 
         x[:, remove_pos, :] = np.nan
         removed_pos = set([pos for pos, b in enumerate(remove_pos)
