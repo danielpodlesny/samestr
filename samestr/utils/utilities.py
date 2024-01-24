@@ -2,9 +2,11 @@ import os
 import re
 
 from datetime import datetime
-from os.path import basename
+from os.path import basename, isdir, isfile
 import numpy as np
+import pandas as pd
 import gzip
+import json
 
 
 def log_time(method):
@@ -121,10 +123,6 @@ def load_numpy_file(input_file):
             return np.load(f, allow_pickle=True)
     else:
         return np.load(input_file, allow_pickle=True)
-    
-
-import os
-import re
 
 def collect_input_files(input_dir, accepted_extensions, recursive=False):
     """
@@ -157,6 +155,47 @@ def collect_input_files(input_dir, accepted_extensions, recursive=False):
 
     return samples, "." + next(iter(extensions)) if extensions else None
 
+def read_json(fpath):
+    with open(fpath, 'r') as file:
+        return json.load(file)
     
+def write_json(fpath, data):
+    with open(fpath, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
 
+def read_tsv(file_path):
+    return pd.read_csv(file_path, sep='\t')
 
+def write_tsv(file_path, df):
+    df.to_csv(file_path, sep='\t', index=False)
+
+def load_samestr_db_manifest(db_path):
+    """
+    read the samestr database files:
+    - db_manifest.json
+    - db_clades.json
+    - db_taxonomy.tsv
+    """
+
+    db_manifest_fn = db_path + '/' + 'db_manifest.json'
+    db_clades_fn = db_path + '/' + 'db_clades.json'
+    db_taxonomy_fn = db_path + '/' + 'db_taxonomy.tsv'
+
+    if isfile(db_manifest_fn):
+        db_existed = True
+        db_manifest = read_json(db_manifest_fn)
+        db_clades = read_json(db_clades_fn)
+        db_taxonomy = {'fpath': db_taxonomy_fn,
+                       'records': read_tsv(db_taxonomy_fn)}
+    else:
+        db_existed = False
+        db_manifest = {'fpath': db_manifest_fn,
+                       'database':{},
+                       'records':{'total_n_files':0, 'total_n_clades':0, 'total_n_markers': 0, 'total_n_positions': 0}}
+        db_clades = {'fpath': db_clades_fn,
+                     'records':{}}
+        db_taxonomy = {'fpath': db_taxonomy_fn,
+                       'records': pd.DataFrame(columns=['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'clade']) }
+        
+    # manifest existed, manifest
+    return db_existed, db_manifest, db_clades, db_taxonomy
