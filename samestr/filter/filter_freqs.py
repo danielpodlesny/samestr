@@ -3,6 +3,7 @@ from os.path import basename, join, exists
 import logging
 import warnings
 import numpy as np
+import gzip
 
 from samestr.utils.utilities import load_numpy_file
 from samestr.utils import clade_path
@@ -16,7 +17,7 @@ def read_marker_positions(clade_marker_file):
     Returns: Dict with start, end positions and len for each marker.
     """
     marker_positions = {}
-    with open(clade_marker_file, 'r') as marker_pos:
+    with gzip.open(clade_marker_file, 'rt') as marker_pos:
         header = next(marker_pos)
         for line in marker_pos:
             line = line.rstrip().split()
@@ -129,10 +130,11 @@ def filter_freqs(args):
     x = load_numpy_file(args['input_file'])
     total_clade_markers_size = x.shape[1]
     np.seterr(divide='ignore', invalid='ignore')
+    initial_pos = set(range(total_clade_markers_size))
     removed_pos = set()
 
     # get marker metadata
-    marker_metadata_file = args['marker_dir'] + '/' + clade_path(args['clade'], filebase = True) + '.positions.txt'
+    marker_metadata_file = args['marker_dir'] + '/' + clade_path(args['clade'], filebase = True) + '.positions.txt.gz'
     marker_positions = read_marker_positions(marker_metadata_file)
 
     # 0 Remove Samples
@@ -141,7 +143,7 @@ def filter_freqs(args):
             0, len(samples)) if samples[n] in input_select]
         remove_n = len(samples) - len(keep_samples)
         samples = [samples[n] for n in keep_samples]
-        LOG.info('Keeping %s out of %s selected sample(s). Removing: %s.' %
+        LOG.info('Keeping %s out of %s selected samples (cmd: `--input-select`). Removing: %s.' %
                  (len(keep_samples), len(input_select), remove_n))
         x = x[keep_samples, :, :]
 
@@ -155,7 +157,7 @@ def filter_freqs(args):
         trunc_pos = trunc_marker_ends(marker_positions,
                                       args['marker_trunc_len'])
 
-        LOG.info('Truncating marker ends at %s [%s%%] global positions.' %
+        LOG.info('Truncating marker ends at %s [%s%%] global positions (cmd: `--marker-trunc-len`).' %
                  (len(trunc_pos),
                   round(len(trunc_pos) / total_clade_markers_size, 1)))
 
@@ -178,7 +180,7 @@ def filter_freqs(args):
             # available marker set intersect w/ markers
             rm_marker_set = read_marker_list(args['marker_remove']) & set(
                 marker_positions.keys())
-            cmd = '--marker-keep'
+            cmd = '--marker-remove'
 
         remove_pos = remove_marker_pos(marker_positions,
                                        remove_markers=rm_marker_set)
@@ -196,6 +198,10 @@ def filter_freqs(args):
     if args['sample_var_min_n_vcov']:
         remove_pos = x < args['sample_var_min_n_vcov']
         x[remove_pos] = 0
+        LOG.info(
+            'Zeroing %s variants [%s%%] covered by too few reads. (cmd: `--sample-var-min-n-vcov`)' %
+            (sum(remove_pos),
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 2.2 min-fcov
     if args['sample_var_min_f_vcov']:
@@ -203,6 +209,10 @@ def filter_freqs(args):
             x,
             coverage(x)[:, :, np.newaxis]) < args['sample_var_min_f_vcov']
         x[remove_pos] = 0
+        LOG.info(
+            'Zeroing %s variants [%s%%] covered by too few reads. (cmd: `--sample-var-min-f-vcov`)' %
+            (sum(remove_pos),
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 3 Filter Positions [per Sample]
 
@@ -210,12 +220,20 @@ def filter_freqs(args):
     if args['sample_pos_min_n_vcov']:
         remove_pos = coverage(x) < args['sample_pos_min_n_vcov']
         x[remove_pos, :] = np.nan
+        LOG.info(
+            'Zeroing %s positions [%s%%] covered by too few reads. (cmd: `--sample-pos-min-n-vcov`)' %
+            (sum(remove_pos),
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 3.2 sd-vcov [of covered positions only]
     if args['sample_pos_min_sd_vcov']:
         remove_pos = abs(z_coverage(
             x, covered_pos_only=True)) > args['sample_pos_min_sd_vcov']
         x[remove_pos, :] = np.nan
+        LOG.info(
+            'Zeroing %s positions [%s%%] deviating from the mean coverage. (cmd: `--sample-pos-min-sd-vcov`)' %
+            (sum(remove_pos),
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
 
     # 4 Filter Samples
 
@@ -227,7 +245,7 @@ def filter_freqs(args):
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
         if len(remove_samples_names) > 0:
-            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
+            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage (cmd: `--samples-min-n-hcov`): %s' %
                      (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
@@ -240,7 +258,7 @@ def filter_freqs(args):
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
         if len(remove_samples_names) > 0:
-            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage: %s' %
+            LOG.info('Removing %s sample(s) due to insufficient horizontal coverage (cmd: `--samples-min-f-hcov`): %s' %
                      (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
@@ -253,7 +271,7 @@ def filter_freqs(args):
             [samples[i] for i, b in enumerate(keep_samples) if b])
         remove_samples_names = keep_samples_names.symmetric_difference(samples)
         if len(remove_samples_names) > 0:
-            LOG.info('Removing %s sample(s) due to insufficient vertical coverage: %s' %
+            LOG.info('Removing %s sample(s) due to insufficient mean vertical coverage (cmd: `--samples-min-m-vcov`): %s' %
                      (len(remove_samples_names), ', '.join(remove_samples_names)))
         samples = [s for s in samples if s not in remove_samples_names]
         x = x[keep_samples, :, :]
@@ -270,14 +288,18 @@ def filter_freqs(args):
         if args['global_pos_min_n_vcov']:
             remove_pos = np.sum(coverage(x) > 0,
                                 axis=0) < args['global_pos_min_n_vcov']
+            LOG.info(
+            'Zeroing %s global positions [%s%%] covered by too few samples. (cmd: `--global-pos-min-n-vcov`)' %
+            (sum(remove_pos),
+             round(sum(remove_pos) / total_clade_markers_size, 1)))
         elif args['global_pos_min_f_vcov']:
             remove_pos = (np.sum(coverage(x) > 0, axis=0) /
                           x.shape[0]) < args['global_pos_min_f_vcov']
-
-        LOG.info(
-            'Zeroing %s global positions [%s%%] covered by too few samples.' %
+            LOG.info(
+            'Zeroing %s global positions [%s%%] covered by too few samples. (cmd: `--global-pos-min-f-vcov`)' %
             (sum(remove_pos),
              round(sum(remove_pos) / total_clade_markers_size, 1)))
+        
         x[:, remove_pos, :] = np.nan
         removed_pos = set([pos for pos, b in enumerate(remove_pos)
                            if b]).union(removed_pos)
@@ -303,6 +325,14 @@ def filter_freqs(args):
     # Delete positions from array
     if args['delete_pos']:
         x = np.delete(x, list(removed_pos), axis=1)
+
+        # Save remaining positions to file
+        remaining_pos = sorted(initial_pos - removed_pos)
+        assert len(remaining_pos) == x.shape[1], "The number of remaining positions does not match the modified array shape."
+
+        with open(output_name + '.pos.txt', 'w') as file:
+            txt = '\n'.join([str(pos) for pos in remaining_pos])
+            file.write(txt)
 
     LOG.info('Remaining positions: %s.' % x.shape[1])
 
