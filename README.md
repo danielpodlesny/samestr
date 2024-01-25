@@ -1,9 +1,16 @@
+#
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg">
+  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg" width="200px"> 
+</picture>
+
+#
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![PyPI version](https://badge.fury.io/py/samestr.svg)](https://badge.fury.io/py/samestr)
 [![Bioconda](https://anaconda.org/bioconda/samestr/badges/version.svg)](http://bioconda.github.io/recipes/samestr/README.html)
 
-# SameStr
-We developed **SameStr** as a bioinformatic tool for the identification of shared microbial strains in metagenomic shotgun sequencing data. SameStr uses clade-specific markers from [MetaPhlan](https://github.com/biobakery/MetaPhlAn) or [mOTUs](https://github.com/motu-tool/mOTUs) to identify and compare SNV profiles. In this, SameStr is not constrained to comparing the majority variants but considers all possible variants in the alignments.
+**SameStr** was developed as a bioinformatic tool for the identification of shared microbial strains in metagenomic shotgun sequencing data. SameStr uses clade-specific markers from [MetaPhlan](https://github.com/biobakery/MetaPhlAn) or [mOTUs](https://github.com/motu-tool/mOTUs) to identify and compare SNV profiles. In this, SameStr is not constrained to comparing the majority variants but considers all possible variants in the alignments.
 
 SameStr's shared strains are specific to related but not unrelated sample pairs and can therefore be used to track strains across biological samples. As demonstrated with strain co-occurrence networks, this enables further applications such as for the quality screening of mislabelled data and possible contamination, or personal identification which raises further questions regarding study participant privacy. 
 
