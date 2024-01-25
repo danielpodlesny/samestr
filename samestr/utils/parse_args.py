@@ -63,25 +63,39 @@ def read_params():
         formatter_class=ap.ArgumentDefaultsHelpFormatter,
         help='Make database from MetaPhlAn or mOTUs markers.')
 
+    # integrity check
+    db_intergrity = db_parser.add_argument_group('Database check arguments')
+    db_intergrity.add_argument(
+        '--db-check',
+        action='store_true',
+        help='Performs just a database integrity check, if an existing SameStr database is provided. All other options will be ignored.'
+    ) 
+    db_intergrity.add_argument(
+        '--marker-dir',
+        required=False,
+        metavar='DIR',
+        type=str,
+        help='Path to existing MetaPhlAn or mOTUs clade marker database.')
+
     # input
     db_input = db_parser.add_argument_group('Input arguments')
     db_input.add_argument(
         '--db-version',
-        required=True,
+        required=False,
         default='PATH',
         type=str,
         help='Path to version file of database (`mpa_latest` for MetaPhlAn, or `db_mOTU_versions` for mOTUs.)'
     )   
     db_input.add_argument(
         '--markers-fasta',
-        required=True,
+        required=False,
         metavar='FASTA',
         type=str,
         help='Markers fasta file (MetaPhlAn [mpa_vJan21_CHOCOPhlAnSGB_202103.fna or higher], or mOTUs [db_mOTU_DB_CEN.fasta]'
     )
     db_input.add_argument(
         '--markers-info',
-        required=True,
+        required=False,
         metavar='PATH',
         nargs='+',
         type=str,
@@ -207,7 +221,6 @@ def read_params():
         help='Path to directory with taxonomic profiles (MetaPhlAn or mOTUs, default extension: .profile.txt). '
         'When not specified, will look for profiles in `input-files` directory.'
     )
-    # TODO: input-files reference
     convert_alignment.add_argument(
         '--tax-profiles-extension',
         required=False,
