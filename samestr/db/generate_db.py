@@ -161,7 +161,8 @@ def generate_db(input_args):
 
         if clade not in all_markers:
             all_markers[clade] = set()
-            all_taxonomy.append(markers_info['markers'][marker][['clade', 'taxon']])   
+            all_taxonomy.append({'clade': markers_info['markers'][marker]['clade'], 
+                                 'taxon': markers_info['markers'][marker]['taxon']})   
         all_markers[clade].add(marker)
 
     LOG.debug('Database contains %s clades, %s markers' %
