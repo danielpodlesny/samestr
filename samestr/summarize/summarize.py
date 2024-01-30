@@ -60,8 +60,8 @@ def summarize(args):
         cooc_data.iloc[:, 2:].isna(), other=np.nan).astype('Int64')
 
     # write output
-    taxon_counts.to_csv(args['output_dir'] +
-                     '/taxon_counts.tsv', sep='\t', index=False)
+    taxon_counts.to_csv(os.path.join(args['output_dir'],
+                     'taxon_counts.tsv', sep='\t', index=False)
     cooc_data.to_csv(args['output_dir'] +
                      '/sstr_cooccurrences.tsv', sep='\t', index=False)
     sstr_data.to_csv(args['output_dir'] +
