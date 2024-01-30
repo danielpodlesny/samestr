@@ -28,7 +28,7 @@ def set_output_structure(args):
             arg['bowtie2out'] = arg['input_dir'] + n + '.bowtie2out'
             
             # motus
-            arg['bam'] = arg['input_dir'] + n + '.bam'
+            arg['bam'] = os.path.join(arg['input_dir'], n + '.bam')
 
             # taxonomic profiles
             if not arg['tax_profiles_dir']:
