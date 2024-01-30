@@ -136,7 +136,7 @@ def get_uniform_extension(files, accepted_extensions):
     return input_extension
 
 
-def clade_path(name, filebase = False):
+def clade_path(name, filebase=False):
     # Initialize segments list
     segments = []
 
