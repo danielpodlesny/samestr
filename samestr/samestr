@@ -78,7 +78,7 @@ def samestr(input_args):
     } 
 
     #### check db integrity if requested and db existed
-    if input_args['db_check']:
+    if input_args.get("db_check", False):
         if not db_existed:
             LOG.error('Cannot conduct a SameStr database check since a database was not provided.')
             exit(1)
