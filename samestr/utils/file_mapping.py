@@ -1,4 +1,4 @@
-from os.path import dirname, abspath, exists
+from os.path import dirname, abspath, exists, join
 from samestr.utils import ooSubprocess
 from samestr.utils.utilities import list_str_all_endswith
 
@@ -24,21 +24,21 @@ def set_output_structure(args):
             n = arg['bname']
 
             # metaphlan
-            arg['sam'] = arg['input_dir'] + n + '.sam.bz2'
-            arg['bowtie2out'] = arg['input_dir'] + n + '.bowtie2out'
+            arg['sam'] = join(arg['input_dir'], n + '.sam.bz2')
+            arg['bowtie2out'] = join(arg['input_dir'], + n + '.bowtie2out')
             
             # motus
-            arg['bam'] = os.path.join(arg['input_dir'], n + '.bam')
+            arg['bam'] = join(arg['input_dir'], n + '.bam')
 
             # taxonomic profiles
             if not arg['tax_profiles_dir']:
                 arg['tax_profiles_dir'] = arg['input_dir']
             else:
-                arg['tax_profiles_dir'] = abspath(arg['tax_profiles_dir']) + '/'
+                arg['tax_profiles_dir'] = join(abspath(arg['tax_profiles_dir']), '')
 
             # file name
-            arg['tax_profile'] = arg['tax_profiles_dir'] + n + arg[
-                'tax_profiles_extension']
+            arg['tax_profile'] = join(arg['tax_profiles_dir'], n + arg[
+                'tax_profiles_extension'])
 
             # exists
             if not exists(arg['tax_profile']):
@@ -46,15 +46,15 @@ def set_output_structure(args):
                 exit(1)
 
             # output
-            sample_dir = out_dir + n + '/'
+            sample_dir = join(out_dir, n, '')
 
             ## sam2bam
-            arg['sorted_bam'] = sample_dir + n + '.bam'
+            arg['sorted_bam'] = join(sample_dir, n + '.bam')
 
             ## bam2freq
-            arg['gene_file'] = sample_dir + n + '.gene_file.txt.gz'
-            arg['contig_map'] = sample_dir + n + '.contig_map.txt.gz'
-            arg['kp'] = sample_dir + n + '.kp.txt'
+            arg['gene_file'] = join(sample_dir, n + '.gene_file.txt.gz')
+            arg['contig_map'] = join(sample_dir, n + '.contig_map.txt.gz')
+            arg['kp'] = join(sample_dir, n + '.kp.txt')
             arg['np'] = sample_dir
 
             # make sample dirs
