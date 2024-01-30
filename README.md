@@ -1,8 +1,8 @@
 #
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg">
-  <img src="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg" width="200px"> 
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielpodlesny/main/assets/SameStr-Logo.v1-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/danielpodlesny/main/assets/SameStr-Logo.v1-light.svg">
+  <img src="https://raw.githubusercontent.com/danielpodlesny/samestr/main/assets/SameStr-Logo.v1-light.svg" width="200px"> 
 </picture>
 
 #
