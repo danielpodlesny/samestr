@@ -24,23 +24,23 @@ def merge_freqs(freqs, freq, freq_name):
 
 
 def freq2freqs(args):
-    """Merges nucleotide frequencies for individual species."""
+    """Merges nucleotide frequencies for individual clades."""
 
-    species_freqs = None
+    clade_freqs = None
     samples = []
 
-    # skip if species file exists
-    output_file = '%s/%s' % (args['output_dir'], args['species'])
+    # skip if clade file exists
+    output_file = '%s/%s' % (args['output_dir'], args['clade'])
     if isfile('%s.npz' % output_file):
-        LOG.info('Skipping: %s. Output file existed.' % args['species'])
+        LOG.info('Skipping: %s. Output file existed.' % args['clade'])
         return True
 
-    # iterate samples of species
+    # iterate samples of clade
     for sample, file_path in args['input_files']:
 
-        # initialize species freqs arrays
-        if species_freqs is None:
-            species_freqs = load_numpy_file(file_path)
+        # initialize clade freqs arrays
+        if clade_freqs is None:
+            clade_freqs = load_numpy_file(file_path)
             if isinstance(sample, list):
                 samples += sample
             else:
@@ -49,21 +49,21 @@ def freq2freqs(args):
             # if more than one sample, continue samples loop
             if len(args['input_files']) > 1:
                 LOG.info('Merging %s inputs: %s' %
-                         (len(args['input_files']), args['species']))
+                         (len(args['input_files']), args['clade']))
                 continue
 
         # if more than one sample, add sample freq to freqs
         if len(args['input_files']) > 1:
-            species_freqs, success = merge_freqs(
-                species_freqs, load_numpy_file(file_path), sample)
+            clade_freqs, success = merge_freqs(
+                clade_freqs, load_numpy_file(file_path), sample)
             if success:
                 if isinstance(sample, list):
                     samples += sample
                 else:
                     samples.append(sample)
 
-    # per species, save freqs and names to file
-    np.savez_compressed(output_file + '.npz', species_freqs, allow_pickle=True)
+    # per clade, save freqs and names to file
+    np.savez_compressed(output_file + '.npz', clade_freqs, allow_pickle=True)
 
     with open(output_file + '.names.txt', 'w') as file:
         file.write('\n'.join(samples) + '\n')

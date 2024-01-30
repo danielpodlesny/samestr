@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
-__author__ = 'Daniel Podlesny (daniel.podlesny@embl.de)'
-__version__ = '1.2023.04-2'
+
 
 from sys import stderr, argv
+import os
 from os.path import basename, dirname, realpath, isdir, isfile
 from os import environ, makedirs
-import argparse as ap
+from datetime import datetime
 import logging
 import logging.config
+import pathlib
 
-from samestr.utils.utilities import list_group_by_basename
+
+from samestr import __version__
+from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
 from samestr.utils.ooSubprocess import serialize, parallelize_async
 from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
-    set_output_structure
+    set_output_structure, clade_path
+from samestr.utils.parse_args import read_params
 
 from samestr.convert import sam2bam, concatenate_gene_files, bam2freq
 from samestr.extract import ref2freq
@@ -22,741 +26,93 @@ from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
 from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import mp2db
+from samestr.db import generate_db
+
+from samestr.utils.parse_args import read_params
+from samestr.utils.citations import citations
 
 SAMESTR_DIR = dirname(realpath(__file__))
-CONVERT_DIR = SAMESTR_DIR + '/convert/'
-UTILS_DIR = SAMESTR_DIR + '/utils/'
+CONVERT_DIR =os.path.join(SAMESTR_DIR, 'convert', '')
+UTILS_DIR =os.path.join(SAMESTR_DIR, 'utils', '')
 environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
-
-def read_params():
-    """Read command line arguments and return them as a dictionary."""
-    parser = ap.ArgumentParser(
-        prog='samestr',
-        description='Welcome to SameStr! SameStr identifies shared strains'
-                    ' between pairs of metagenomic samples '
-                    'based on the similarity of their Single Nucleotide Variant (SNV) profiles.',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter
-    )
-
-    # Show help by default if no arguments are passed
-    if len(argv) < 2:
-        parser.print_help(stderr)
-        exit(1)
-
-    # Retrieve version of the program
-    parser.add_argument(
-        '--version',
-        action='version',
-        version=f'samestr-{__version__}',
-        help='Show version of the program and exit.'
-    )
-
-    # Print citation
-    parser.add_argument(
-        '--citation',
-        required=False,
-        metavar='STR',
-        nargs='?',
-        const='Text',
-        choices=['Text', 'BibTex', 'Endnote', 'RIS', 'DOI'],
-        type=str,
-        help='Print citation and exit. '
-             'Options: Text, BibTex, Endnote, RIS, DOI.')
-
-    # Set communication verbosity
-    parser.add_argument(
-        '--verbosity',
-        required=False,
-        default='INFO',
-        metavar='STR',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        type=str,
-        help='Set the verbosity of the program. '
-             'Options: DEBUG, INFO, WARNING, ERROR, CRITICAL.')
-
-    # add subparsers for different commands
-    subparser = parser.add_subparsers(
-        title='commands',
-        dest='command',
-        help='Use one of the following commands for different tasks:',)
-    # subparser.required = True  # http://bugs.python.org/issue9253#msg186387
-
-    # CONVERT
-    convert_parser = subparser.add_parser(
-        'convert',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Convert sequence alignments to SNV Profiles.')
-
-    # general
-    convert_general = convert_parser.add_argument_group('General arguments')
-    convert_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-    convert_general.add_argument(
-        '--tmp-dir',
-        required=False,
-        metavar='DIR',
-        default='tmp/',
-        type=str,
-        help='Path to temporary directory')
-
-    # input
-    convert_input = convert_parser.add_argument_group('Input arguments')
-    convert_input.add_argument(
-        '--input-files',
-        required=True,
-        metavar='SAM|SAM.BZ2',
-        nargs='+',
-        default=[],
-        type=str,
-        help='Path to input MetaPhlAn marker alignments.')
-
-    # output
-    convert_output = convert_parser.add_argument_group('Output arguments')
-    convert_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_convert/',
-        type=str,
-        help='Path to output directory.')
-    convert_output.add_argument(
-        '--keep-tmp-files',
-        required=False,
-        default=False,
-        action='store_true',
-        help='Keeps intermediate files from transformation steps on disk.')
-
-    # mapping
-    convert_alignment = convert_parser.add_argument_group(
-        'Alignment arguments')
-    convert_alignment.add_argument(
-        '--min-aln-identity',
-        required=False,
-        metavar='FLOAT',
-        default=0.9,
-        type=float,
-        help='Minimum percent identity in alignment.')
-    convert_alignment.add_argument(
-        '--min-aln-len',
-        required=False,
-        metavar='INT',
-        default=40,
-        type=int,
-        help='Minimum alignment length.')
-    convert_alignment.add_argument(
-        '--mp-profiles-dir',
-        required=False,
-        metavar='DIR',
-        type=str,
-        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt). '
-        'When not specified, will look for metaphlan profiles in `input-files` directory.'
-    )
-    convert_alignment.add_argument(
-        '--mp-profiles-extension',
-        required=False,
-        metavar='EXT',
-        default='.profile.txt',
-        type=str,
-        help='File extension of MetaPhlAn profiles.'
-    )
-    convert_alignment.add_argument(
-        '--marker-dir',
-        required=False,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn species marker database.')
-    convert_alignment.add_argument(
-        '--min-base-qual',
-        required=False,
-        metavar='INT',
-        default=20,
-        type=int,
-        help='Minimum base call quality.')
-    convert_alignment.add_argument(
-        '--min-aln-qual',
-        required=False,
-        metavar='INT',
-        default=0,
-        type=int,
-        help='Minimum alignment quality. Increasing this threshold can '
-             'drastically reduce the number of considered variants.')
-    convert_alignment.add_argument(
-        '--min-vcov',
-        required=False,
-        metavar='INT',
-        default=3,
-        type=int,
-        help='Minimum vertical coverage.')
-
-    # EXTRACT
-    extract_parser = subparser.add_parser(
-        'extract',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Extract SNV Profiles from Reference Genomes.')
-
-    # general
-    extract_general = extract_parser.add_argument_group('General arguments')
-    extract_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-    extract_general.add_argument(
-        '--tmp-dir',
-        required=False,
-        metavar='DIR',
-        default='tmp/',
-        type=str,
-        help='Path to temporary directory')
-
-    # input
-    extract_input = extract_parser.add_argument_group('Input arguments')
-    extract_input.add_argument(
-        '--input-files',
-        required=True,
-        metavar='FASTA|FNA|FA|FASTA.GZ|FNA.GZ|FA.GZ',
-        nargs='+',
-        default=[],
-        type=str,
-        help='Reference genomes in fasta format.')
-    extract_input.add_argument(
-        '--species',
-        required=True,
-        metavar='CLADE',
-        type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
-    extract_input.add_argument(
-        '--marker-dir',
-        required=True,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn species marker database.')
-
-    # output
-    extract_output = extract_parser.add_argument_group('Output arguments')
-    extract_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_extract/',
-        type=str,
-        help='Path to output directory.')
-    extract_output.add_argument(
-        '--keep-tmp-files',
-        required=False,
-        default=False,
-        action='store_true',
-        help='If not working from memory, '
-             'keeps extracted species alignments per sample on disk.')
-    extract_output.add_argument(
-        '--save-marker-aln',
-        required=False,
-        action='store_true',
-        help='Keep alignment files for individual markers.')
-
-    # alignment
-    extract_alignment = extract_parser.add_argument_group(
-        'Alignment arguments')
-    extract_alignment.add_argument(
-        '--aln-program',
-        required=False,
-        default='muscle',
-        choices=['muscle', 'mafft'],
-        type=str,
-        help='Program to use for alignment of marker sequences.')
-    extract_alignment.add_argument(
-        '--marker-trunc-len',
-        required=False,
-        metavar='INT',
-        default=0,
-        type=int,
-        help='Number of Nucleotides to be cut from each side of a marker.')
-
-    # MERGE
-    merge_parser = subparser.add_parser(
-        'merge',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Merge SNV Profiles from multiple sources.')
-
-    # general
-    merge_general = merge_parser.add_argument_group('General arguments')
-    merge_general.add_argument(
-        '--nprocs',
-        required=False,
-        metavar='INT',
-        default=1,
-        type=int,
-        help='The number of processing units to use.')
-
-    # input
-    merge_input = merge_parser.add_argument_group('Input arguments')
-    merge_input.add_argument(
-        '--input-files',
-        nargs='+',
-        required=True,
-        metavar='NPY',
-        default=[],
-        type=str,
-        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
-
-    # output
-    merge_output = merge_parser.add_argument_group('Output arguments')
-    merge_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_merge/',
-        type=str,
-        help='Path to output directory.')
-
-    # species
-    merge_species = merge_parser.add_argument_group('Species arguments')
-    merge_species.add_argument(
-        '--species',
-        required=False,
-        metavar='CLADE',
-        nargs='+',
-        type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
-
-    # FILTER
-    filter_parser = subparser.add_parser(
-        'filter',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Filter SNV Profiles.')
-
-    # general
-    filter_general = filter_parser.add_argument_group('General arguments')
-    filter_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-
-    # input
-    filter_input = filter_parser.add_argument_group('Input arguments')
-    filter_input.add_argument(
-        '--input-files',
-        required=True,
-        nargs='+',
-        metavar='NPY',
-        default=[],
-        type=str,
-        help='Path to input SNV Profiles. Should have .npy, .npz or .npy.gz extension.')
-    filter_input.add_argument(
-        '--input-names',
-        required=True,
-        nargs='+',
-        metavar='TXT',
-        default=[],
-        type=str,
-        help='Path to input name files.')
-
-    # output
-    filter_output = filter_parser.add_argument_group('Output arguments')
-    filter_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_filter/',
-        type=str,
-        help='Path to output directory.')
-    filter_output.add_argument(
-        '--keep-poly',
-        required=False,
-        action='store_true',
-        help='Keep only positions that are polymorphic in at least one sample')
-    filter_output.add_argument(
-        '--keep-mono',
-        required=False,
-        action='store_true',
-        help='Keep only positions that are monomorphic in all samples')
-    filter_output.add_argument(
-        '--delete-pos',
-        required=False,
-        action='store_true',
-        help='Delete masked marker and global positions from array instead of np.nan'
-    )
-
-    # filter settings
-
-    # species
-    filter_species = filter_parser.add_argument_group(
-        'Species arguments')
-    filter_species.add_argument(
-        '--species',
-        required=False,
-        metavar='CLADE',
-        nargs='+',
-        type=str,
-        help='Species to process from input files. '
-              'Names must correspond to MetaPhlAn taxonomy '
-              '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
-    filter_species.add_argument(
-        '--species-min-samples',
-        required=False,
-        metavar='INT',
-        default=2,
-        type=int,
-        help='Skipping species with fewer than `species-min-samples` samples.')
-
-    # markers
-    filter_markers = filter_parser.add_argument_group(
-        'Species Marker arguments')
-    filter_markers.add_argument(
-        '--marker-dir',
-        required=True,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to MetaPhlAn species marker database.')
-    filter_markers.add_argument(
-        '--marker-remove',
-        required=False,
-        metavar='TXT',
-        type=str,
-        help='List of Markers to remove for selected species. '
-             'Requires `species` to be specified.')
-    filter_markers.add_argument(
-        '--marker-keep',
-        required=False,
-        metavar='TXT',
-        type=str,
-        help='List of Markers to keep for selected species. '
-             'Requires `species` to be specified. Overrides `marker-remove`.')
-    filter_markers.add_argument(
-        '--marker-trunc-len',
-        required=False,
-        metavar='INT',
-        default=50,
-        type=int,
-        help='Number of Nucleotides to be cut from each two sides of a marker.')
-
-    # sample variants
-    filter_sample_pos = filter_parser.add_argument_group(
-        'Sample Variant Filtering arguments')
-    filter_sample_pos.add_argument(
-        '--sample-var-min-n-vcov',
-        required=False,
-        metavar='INT',
-        default=2,
-        type=int,
-        help='Remove variants with coverage below `sample-var-min-n-vcov` nucleotides.')
-    filter_sample_pos.add_argument(
-        '--sample-var-min-f-vcov',
-        required=False,
-        metavar='FLOAT',
-        default=0.05,
-        type=float,
-        help='Remove variants with coverage below `sample-var-min-f-vcov` percent.')
-
-    # sample positions
-    filter_sample_pos = filter_parser.add_argument_group(
-        'Sample Position Filtering arguments')
-    filter_sample_pos.add_argument(
-        '--sample-pos-min-n-vcov',
-        required=False,
-        metavar='INT',
-        default=1,
-        type=int,
-        help='Remove positions with coverage below `sample-pos-min-n-vcov` nucleotides.'
-    )
-    filter_sample_pos.add_argument(
-        '--sample-pos-min-sd-vcov',
-        required=False,
-        metavar='FLOAT',
-        default=3.0,
-        type=float,
-        help='Remove positions with coverage +-`sample-pos-min-sd-vcov` from the mean.'
-    )
-
-    # samples
-    filter_samples = filter_parser.add_argument_group(
-        'Sample Filtering arguments')
-    filter_samples.add_argument(
-        '--samples-select',
-        required=False,
-        nargs='+',
-        metavar='TXT',
-        default=[],
-        type=str,
-        help='Path to names file with subsample of input names.')
-    filter_samples.add_argument(
-        '--samples-min-n-hcov',
-        required=False,
-        metavar='INT',
-        type=int,
-        default=5000,
-        help='Remove samples with horizontal coverage below `samples-min-n-hcov`.')
-    filter_samples.add_argument(
-        '--samples-min-f-hcov',
-        required=False,
-        metavar='FLOAT',
-        type=float,
-        help='Remove samples with fraction of horizontal coverage below `samples-min-f-hcov`.')
-    filter_samples.add_argument(
-        '--samples-min-m-vcov',
-        required=False,
-        metavar='FLOAT',
-        type=float,
-        help='Remove samples with mean coverage below `samples-min-m-vcov`.')
-
-    ### global positions
-    filter_global_pos = filter_parser.add_argument_group(
-        'Global Position Filtering arguments')
-    filter_global_pos.add_argument(
-        '--global-pos-min-n-vcov',
-        required=False,
-        metavar='INT',
-        default=2,
-        type=int,
-        help='Remove positions covered by fewer than `global-pos-min-n-vcov` number of samples. '
-        'Overrides `global-pos-min-f-vcov`.')
-    filter_global_pos.add_argument(
-        '--global-pos-min-f-vcov',
-        required=False,
-        metavar='FLOAT',
-        default=False,
-        type=float,
-        help='Remove positions covered by fewer than `global-pos-min-f-vcov` fraction of samples.')
-
-    # compare subparser
-    compare_parser = subparser.add_parser(
-        'compare',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Calculate pairwise sequence similarity.')
-    # general
-    compare_general = compare_parser.add_argument_group('General arguments')
-    compare_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-
-    # input
-    compare_input = compare_parser.add_argument_group('Input arguments')
-    compare_input.add_argument(
-        '--input-files',
-        required=True,
-        nargs='+',
-        metavar='NPY',
-        default=[],
-        type=str,
-        help='Path to input SNV Profiles. Should have .npy, .npz or .npy.gz extension.')
-    compare_input.add_argument(
-        '--input-names',
-        required=True,
-        nargs='+',
-        metavar='TXT',
-        default=[],
-        type=str,
-        help='Path to input name files.')
-
-    # output
-    compare_output = compare_parser.add_argument_group('Output arguments')
-    compare_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_compare/',
-        type=str,
-        help='Path to output directory.')
-
-    compare_output.add_argument(
-        '--dominant-variants',
-        required=False,
-        action='store_true',
-        help='Compare only dominant variants as obtained from consensus call.')
-    compare_output.add_argument(
-        '--dominant-variants-added',
-        required=False,
-        action='store_true',
-        help='Add dominant variants as additional entries to data.')
-    compare_output.add_argument(
-        '--dominant-variants-msa',
-        required=False,
-        action='store_true',
-        help='Output alignment of dominant variants as fasta.')
-
-    # SUMMARIZE
-    summarize_parser = subparser.add_parser(
-        'summarize',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Summarize Taxonomic Co-Occurrence.')
-
-    # input
-    summarize_input = summarize_parser.add_argument_group('Input arguments')
-    summarize_input.add_argument(
-        '--input-dir',
-        required=True,
-        metavar='DIR',
-        type=str,
-        help='Path to `samestr compare` output directory. Must contain '
-             'pairwise comparison of species alignment files (.fraction.txt, .overlap.txt)'
-    )
-    summarize_input.add_argument(
-        '--mp-profiles-dir',
-        required=True,
-        metavar='DIR',
-        type=str,
-        help='Path to directory with MetaPhlAn profiles (default extension: .profile.txt).'
-    )
-    summarize_input.add_argument(
-        '--mp-profiles-extension',
-        required=False,
-        metavar='EXT',
-        default='.profile.txt',
-        type=str,
-        help='File extension of MetaPhlAn profiles.'
-    )
-
-    # output
-    summarize_output = summarize_parser.add_argument_group('Output arguments')
-    summarize_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_summarize/',
-        type=str,
-        help='Path to output directory.')
-
-    # samples
-    summarize_thresholds = summarize_parser.add_argument_group(
-        'Summary threshold arguments')
-    summarize_thresholds.add_argument(
-        '--aln-pair-min-overlap',
-        required=False,
-        metavar='INT',
-        default=5000,
-        type=int,
-        help='Minimum number of overlapping positions which have to be covered in both '
-        'alignments in order to evaluate alignment similarity.'
-    )
-    summarize_thresholds.add_argument(
-        '--aln-pair-min-similarity',
-        required=False,
-        metavar='FLOAT',
-        default=0.999,
-        type=float,
-        help='Minimum pairwise alignment similarity to call shared strains.'
-    )
-
-    # STATS
-    stats_parser = subparser.add_parser(
-        'stats',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Report alignment statistics.')
-    # general
-    stats_general = stats_parser.add_argument_group('General arguments')
-    stats_general.add_argument(
-        '--nprocs',
-        required=False,
-        default=1,
-        metavar='INT',
-        type=int,
-        help='The number of processing units to use.')
-
-    # input
-    stats_input = stats_parser.add_argument_group('Input arguments')
-    stats_input.add_argument(
-        '--input-files',
-        required=True,
-        nargs='+',
-        metavar='NPY',
-        default=[],
-        type=str,
-        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
-    stats_input.add_argument(
-        '--input-names',
-        required=True,
-        nargs='+',
-        metavar='FILEPATH',
-        default=[],
-        type=str,
-        help='Path to input name files.')
-
-    # output
-    stats_output = stats_parser.add_argument_group('Output arguments')
-    stats_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='marker_db/',
-        type=str,
-        help='Path to output directory.')
-    stats_output.add_argument(
-        '--dominant-variants',
-        required=False,
-        action='store_true',
-        help='Report statistics only for dominant variants as obtained from consensus call.')
-
-    # DB
-    db_parser = subparser.add_parser(
-        'db',
-        formatter_class=ap.ArgumentDefaultsHelpFormatter,
-        help='Make database from MetaPhlAn markers.')
-
-    # input
-    db_input = db_parser.add_argument_group('Input arguments')
-    db_input.add_argument(
-        '--mpa-markers',
-        required=True,
-        metavar='FASTA',
-        type=str,
-        help='MetaPhlAn markers file (e.g. all_markers.fasta, mpa_vJan21_CHOCOPhlAnSGB_202103.fna)'
-    )
-    db_input.add_argument(
-        '--mpa-pkl',
-        required=False,
-        metavar='MPA_PKL',
-        type=str,
-        help='Bowtie2db mpa.pkl file.')
-    db_input.add_argument(
-        '--species',
-        required=False,
-        metavar='CLADE',
-        nargs='+',
-        type=str,
-        help='Species to process from input files. '
-             'Names must correspond to MetaPhlAn taxonomy '
-             '[e.g. Escherichia_coli for clade s__Escherichia_coli]')
-
-    # output
-    db_output = db_parser.add_argument_group('Output arguments')
-    db_output.add_argument(
-        '--output-dir',
-        required=False,
-        metavar='DIR',
-        default='out_db/',
-        type=str,
-        help='Path to output directory.')
-
-    return vars(parser.parse_args())
 
 
 def samestr(input_args):
     """Main function for SAMESTR."""
+    
+    ## Log command     
+    samestr_cmd = {
+            'version': f'{__version__}',
+            'command': ' '.join(argv),
+            'date-start': '%s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    ## Get database manifest files
+    if input_args['command'] == 'db':
+        if not input_args['db_check']:
+            for o in ['db_version', 'markers_fasta', 'markers_info']:
+                if o not in input_args:
+                    LOG.error('The following argument is required: %s' % o)
+                    exit(1)
+            input_args['marker_dir'] = input_args['output_dir']
+    db_existed, db_manifest, db_clades, db_taxonomy = load_samestr_db_manifest(input_args['marker_dir'])
+
+    #### Print Info
+    if db_existed:
+        LOG.info('Processing data with existing SameStr database based on %s, %s' % (db_manifest['database']['name'], db_manifest['database']['version']))
+        LOG.info('Database contains %s files, %s clades, %s markers, totalling %s positions.' % (db_manifest['records']['total_n_files'],
+                                                                                              db_manifest['records']['total_n_clades'],
+                                                                                              db_manifest['records']['total_n_markers'],
+                                                                                              db_manifest['records']['total_n_positions']
+                                                                                              ))
+    elif not db_existed and input_args['command'] != 'db':
+        LOG.error('Aborting. Could not parse database at %s' % input_args['output_dir'])
+        exit(1)
+
+    #### Attach to input var, don't update manifest yet.
+    input_args['samestr_db'] = {
+        'db_existed': db_existed,
+        'db_manifest': db_manifest,
+        'db_clades': db_clades,
+        'db_taxonomy': db_taxonomy,
+        'samestr_cmd': samestr_cmd
+    } 
+
+    #### check db integrity if requested and db existed
+    if input_args.get("db_check", False):
+        if not db_existed:
+            LOG.error('Cannot conduct a SameStr database check since a database was not provided.')
+            exit(1)
+        else:
+            t_missing = []
+            t_found = 0
+            LOG.info('Checking integrity of the SameStr database.')
+            expected_file_bases = ['%s/%s' % (input_args['marker_dir'], clade_path(c, filebase = True)) for c in db_clades['records'].keys()]
+            for e in  expected_file_bases:
+                suffix = ['.contig_map.txt.gz', '.gene_file.txt.gz', '.markers.fa.gz', '.positions.txt.gz']
+                for s in suffix:
+                    t = e + s
+                    if not isfile(t):
+                        t_missing.append(t)
+                    else:
+                        t_found += 1
+
+            if t_found == db_manifest['records']['total_n_files']:
+                LOG.info('Number of files in the SameStr database matches the manifest.')
+            if len(t_missing) > 0:
+                outfn =os.path.join(input_args['output_dir'], 'db_check.tsv')
+                LOG.warning('Files missing from the SameStr database: %s. Saving to %s' % (len(t_missing), outfn))
+                if not isdir(input_args['output_dir']):
+                    makedirs(input_args['output_dir'])
+                with open(outfn, 'w') as f:
+                    txt = '\n'.join(t_missing)
+                    f.write(txt)
+            exit(0)
+    
+    ## Check input file extensions
     accepted_extensions_dict = {
-        'convert': ['.sam', '.sam.bz2'],
         'db': ['.fasta', '.fa', '.fna', '.fasta.bz2', '.fa.bz2', '.fna.bz2'],
+        'convert': ['.sam', '.sam.bz2', '.bam'],
         'extract': ['.fasta', '.fa', '.fna', '.fasta.gz', '.fa.gz', '.fna.gz'],
         'merge': ['.npy', '.npy.gz', '.npz'],
         'filter': ['.npy', '.npy.gz', '.npz'],
@@ -765,15 +121,13 @@ def samestr(input_args):
         'summarize': ['']
     }
 
-
-    ## preprocess input/output files & extensions and map to commands
-    ####
+    #### preprocess input/output files & extensions and map to commands
     accepted_extensions = accepted_extensions_dict[input_args['command']]
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
-            [input_args['mpa_markers']], accepted_extensions)
+            [input_args['markers_fasta']], accepted_extensions)
 
-    elif input_args['command'] != 'summarize':
+    elif input_args['command'] not in ('summarize'):
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
 
@@ -781,13 +135,34 @@ def samestr(input_args):
         file_count = len(input_args['input_files'])
         LOG.debug('Number of input files: %s', file_count)
 
-    # check make output dir
+    ## check make output dir
     if not isdir(input_args['output_dir']):
-        makedirs(input_args['output_dir'])
+        pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
+    input_clade = input_args.get("species")
+
+    ################################
     ## process individual commands
-    ####
-    if input_args['command'] == 'convert':
+    if input_args['command'] == 'db':
+        
+        outdir =os.path.join(input_args['output_dir'], 'db_markers', '')
+        if not isdir(outdir):
+            makedirs(outdir)
+
+        # expand and generate db from markers/info files
+        generate_db(input_args)
+
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
+
+    elif input_args['command'] == 'convert':
+        # TODO: offer/fix dir-based input
+        # input_args['input_files'], input_args['input_extension'] = collect_input_files(
+        #     input_args['input_dir'],
+        #     accepted_extensions,
+        #     recursive=input_args["recursive_input"]
+        # )
+        
         input_args['input_files'] = list_group_by_basename(
             input_args['input_files'],
             cut_name_endings=[input_args['input_extension']])
@@ -798,117 +173,123 @@ def samestr(input_args):
         cmd_args = set_output_structure(cmd_args)
 
         # Run: convert
-        cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])
         cmd_args = parallelize_async(concatenate_gene_files, cmd_args,
                                  input_args['nprocs'])
+        
+        cmd_args = parallelize_async(sam2bam, cmd_args, input_args['nprocs'])        
         cmd_args = parallelize_async(bam2freq, cmd_args, input_args['nprocs'])
 
-    elif input_args['command'] == 'db':
-
-        # expand and generate db from metaphlan markers/pkl files
-        mp2db(input_args)
+    elif input_args['command'] == 'extract':
+        cmd_args = serialize(ref2freq, [input_args])
 
     elif input_args['command'] == 'merge':
 
-        species_file_dict = {}
+        clade_file_dict = {}
 
-        # group input files by species
+        # group input files by clade
         for file_path in input_args['input_files']:
-            file = basename(file_path)
-            species = file.split('.')[0]
+            fn = basename(file_path)
+            clade = fn.split('.')[0]
 
             # append list if file has been merged before
             sample_names = file_path.replace(
-                input_args['input_extension'], '.names.txt')
+                input_args['input_extension'], '.names.txt'
+            )
             if isfile(sample_names):
                 with open(sample_names, 'r', encoding="utf8") as s_n:
                     sample = s_n.read().strip().split('\n')
             else:
-                sample = file.split(input_args['input_extension'])[
-                    0].replace(f'{species}.', '')
+                sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
-            # skip if not in selected species
-            if input_args['species']:
-                if species not in input_args['species']:
-                    continue
+            # skip if not in selected clade
+            if input_clade is not None and clade not in input_clade:
+                continue
 
-            if species not in species_file_dict:
-                species_file_dict[species] = [[sample, file_path]]
+            clade_file_dict.setdefault(clade, []).append([sample, file_path])
+            if clade not in clade_file_dict:
+                clade_file_dict[clade] = [[sample, file_path]]
             else:
-                species_file_dict[species] += [[sample, file_path]]
+                clade_file_dict[clade] += [[sample, file_path]]
 
-        cmd_args = []
-        for idx, species in enumerate(species_file_dict.keys()):
-            cmd_args.append({})
-            cmd_args[idx]['species'] = species
-            cmd_args[idx]['input_files'] = species_file_dict[species]
-            cmd_args[idx]['output_dir'] = input_args['output_dir']
+        cmd_args = [
+               {
+                    "clade": clade,
+                    "input_files": files,
+                    "output_dir": input_args["output_dir"],
+               }
+               for clade, files in clade_file_dict.items()
+        ]        
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
 
     elif input_args['command'] in ['filter', 'stats', 'compare']:
 
         # For each species: group freqs with resp names
-        freqs = {}
-        for i_f in input_args['input_files']:
-            species = basename(i_f).split(input_args['input_extension'])[0]
-            freqs[species] = [i_f]
+        freqs = {
+            basename(fn).split(input_args['input_extension'])[0]: [fn]
+            for fn in input_args['input_files']
+        }
 
-        for i_n in input_args['input_names']:
-            species = basename(i_n).split('.names.txt')[0]
-            if species not in freqs:
+        for name in input_args['input_names']:
+            clade = basename(name).split('.names.txt')[0]
+            if clade not in freqs:
                 LOG.warning('Skipping %s. Found name file '
-                            'but no SNV profile.', species)
+                            'but no SNV profile.', clade)
             else:
-                freqs[species] += [i_n]
+                freqs[clade].append(name)
 
-        for species, freq in list(freqs.items()):
+        for clade, freq in list(freqs.items()):
             if len(freq) != 2:
-                LOG.warning('Skipping %s. Found SNV profile '
-                            'but no name file.', species)
-                freqs.pop(species)
-            if 'species' in input_args and input_args['species'] is not None:
-                if species not in input_args['species']:
-                    freqs.pop(species)
+                LOG.warning('Skipping [%s]. Found SNV profile '
+                            'but no name file: %s' % (clade, ', '.join(freq)))
+                freqs.pop(clade)
+            elif input_clade is not None and clade not in input_clade:
+                freqs.pop(clade)
 
         # attach sample selection file
         if 'samples_select' in input_args:
             for i_s in input_args['samples_select']:
-                species = basename(i_s).split('.select.txt')[0]
-                if species not in freqs:
+                clade = basename(i_s).split('.select.txt')[0]
+                if clade not in freqs:
                     LOG.warning('Skipping %s. Found selection file '
-                                'but no SNV profile.', species)
+                                'but no SNV profile.', clade)
                 else:
-                    freqs[species] += [i_s]
+                    freqs[clade].append(i_s)
 
-        for species, freq in list(freqs.items()):
+        for clade, freq in list(freqs.items()):
             if len(freq) > 3:
                 LOG.warning('Skipping %s. Found more than one '
-                            'sample selection file.', species)
-                freqs.pop(species)
+                            'sample selection file: %s' % (clade, ', '.join(freq)))
+                freqs.pop(clade)
             elif len(freq) == 2:
                 freq += [None]
             elif len(freq) != 3:
-                LOG.error('Unexpected number of files (%s): %s.', len(freq), species)
-                exit(0)
+                LOG.error('Unexpected number of files (%s): %s.', len(freq), clade)
+                exit(0)  
 
-        # Spread args over species
+        # Spread args over clades
         cmd_args = []
-        for idx, (species, (input_file, input_name,
-                            input_select)) in enumerate(freqs.items()):
-            cmd_args.append({})
-            cmd_args[idx]['input_file'] = input_file
-            cmd_args[idx]['input_name'] = input_name
-            cmd_args[idx]['input_select'] = input_select
-            cmd_args[idx]['species'] = species
+        ignore_args = {'input_files', 'input_names', 'input_select', 'clade'}
 
-            for arg in input_args:
-                if arg in [
-                    'input_files', 'input_names', 'input_select', 'species'
-                ]:
-                    continue
-                cmd_args[idx][arg] = input_args[arg]
+        arg_template_d = {
+            arg: value
+            for arg, value in input_args.items()
+            if arg not in ignore_args
+        }
 
+        for clade, (input_file, input_name, input_select) in freqs.items():
+            
+            args_d = {
+                "input_file": input_file,
+                "input_name": input_name,
+                "input_select": input_select,
+                "clade": clade,
+            }
+
+            args_d.update(arg_template_d)
+
+            cmd_args.append(args_d)
+            
         if input_args['command'] == 'filter':
             LOG.info('Filtering files: %s', len(freqs))
 
@@ -929,77 +310,20 @@ def samestr(input_args):
 
     elif input_args['command'] == 'summarize':
         cmd_args = serialize(summarize, [input_args])
+    
+    # write current command to logfile
+    samestr_cmd['date-end'] = '%s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logfile_fn =os.path.join(input_args['output_dir'], 'command_log.json')
+    if isfile(logfile_fn):
+        logfile = read_json(logfile_fn)
+        iter = max([int(k) for k in logfile.keys()]) + 1
+    else:
+        logfile = {}
+        iter = 1
+    logfile[iter] = samestr_cmd
+    write_json(logfile_fn, logfile)
+    LOG.info('Done.')
 
-    elif input_args['command'] == 'extract':
-        cmd_args = serialize(ref2freq, [input_args])
-
-citations = {
-'Text' :  
-"""
-Podlesny D, Arze C, Dörner E, Verma S, Dutta S, Walter J, Fricke WF. 
-Metagenomic strain detection with SameStr: 
-identification of a persisting core gut microbiota transferable by fecal transplantation. 
-Microbiome. 2022 Mar 25;10(1):53. doi: 10.1186/s40168-022-01251-w. 
-PMID: 35337386; PMCID: PMC8951724.
-""",
-'BibTex' : 
-"""
-@article{podlesny2022metagenomic,
-title={Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation},
-author={Podlesny, Daniel and Arze, Cesar and D{\"o}rner, Elisabeth and Verma, Sandeep and Dutta, Sudhir and Walter, Jens and Fricke, W Florian},
-journal={Microbiome},
-volume={10},
-number={1},
-pages={1--15},
-year={2022},
-publisher={BioMed Central}
-}
-""",
-'RIS' : 
-"""
-TY  - JOUR
-AU  - Podlesny, Daniel
-AU  - Arze, Cesar
-AU  - Dörner, Elisabeth
-AU  - Verma, Sandeep
-AU  - Dutta, Sudhir
-AU  - Walter, Jens
-AU  - Fricke, W. Florian
-PY  - 2022
-DA  - 2022/03/25
-TI  - Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
-JO  - Microbiome
-SP  - 53
-VL  - 10
-IS  - 1
-AB  - The understanding of how microbiomes assemble, function, and evolve requires metagenomic tools that can resolve microbiota compositions at the strain level. However, the identification and tracking of microbial strains in fecal metagenomes is challenging and available tools variably classify subspecies lineages, which affects their applicability to infer microbial persistence and transfer.
-SN  - 2049-2618
-UR  - https://doi.org/10.1186/s40168-022-01251-w
-DO  - 10.1186/s40168-022-01251-w
-ID  - Podlesny2022
-ER  - 
-""",
-'DOI' : 'https://doi.org/10.1186/s40168-022-01251-w',
-'Endnote' : 
-"""
-%0 Journal Article
-%T Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation
-%A Podlesny, Daniel
-%A Arze, Cesar
-%A Dörner, Elisabeth
-%A Verma, Sandeep
-%A Dutta, Sudhir
-%A Walter, Jens
-%A Fricke, W Florian
-%J Microbiome
-%V 10
-%N 1
-%P 1-15
-%@ 2049-2618
-%D 2022
-%I BioMed Central          
-"""
-}
 
 if __name__ == "__main__":
     args = read_params()

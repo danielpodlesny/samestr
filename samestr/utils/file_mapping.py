@@ -1,3 +1,4 @@
+import os
 from os.path import dirname, abspath, exists
 from samestr.utils import ooSubprocess
 from samestr.utils.utilities import list_str_all_endswith
@@ -13,7 +14,7 @@ def set_output_structure(args):
     """
 
     # dest
-    out_dir = abspath(args[0]['output_dir']) + '/'
+    out_dir =os.path.join(abspath(args[0]['output_dir']), '')
     cmd = args[0]['command']
 
     ooSubprocess.makedirs(out_dir)
@@ -24,34 +25,37 @@ def set_output_structure(args):
             n = arg['bname']
 
             # metaphlan
-            arg['sam'] = arg['input_dir'] + n + '.sam.bz2'
-            arg['bowtie2out'] = arg['input_dir'] + n + '.bowtie2out'
+            arg['sam'] =os.path.join(arg['input_dir'], n + '.sam.bz2')
+            arg['bowtie2out'] =os.path.join(arg['input_dir'], n + '.bowtie2out')
+            
+            # motus
+            arg['bam'] =os.path.join(arg['input_dir'], n + '.bam')
 
-            # metaphlan profiles
-            if not arg['mp_profiles_dir']:
-                arg['mp_profiles_dir'] = arg['input_dir']
+            # taxonomic profiles
+            if not arg['tax_profiles_dir']:
+                arg['tax_profiles_dir'] = arg['input_dir']
             else:
-                arg['mp_profiles_dir'] = abspath(arg['mp_profiles_dir']) + '/'
+                arg['tax_profiles_dir'] =os.path.join(abspath(arg['tax_profiles_dir']), '')
 
             # file name
-            arg['mp_profile'] = arg['mp_profiles_dir'] + n + arg[
-                'mp_profiles_extension']
+            arg['tax_profile'] =os.path.join(arg['tax_profiles_dir'], n + arg[
+                'tax_profiles_extension'])
 
             # exists
-            if not exists(arg['mp_profile']):
-                LOG.error('MetaPhlAn file not found: %s' % arg['mp_profile'])
+            if not exists(arg['tax_profile']):
+                LOG.error('Taxonomic profile not found: %s' % arg['tax_profile'])
                 exit(1)
 
             # output
-            sample_dir = out_dir + n + '/'
+            sample_dir =os.path.join(out_dir, n, '')
 
             ## sam2bam
-            arg['bam'] = sample_dir + n + '.bam'
+            arg['sorted_bam'] =os.path.join(sample_dir, n + '.bam')
 
             ## bam2freq
-            arg['gene_file'] = sample_dir + n + '.gene_file.txt'
-            arg['contig_map'] = sample_dir + n + '.contig_map.txt'
-            arg['kp'] = sample_dir + n + '.kp.txt'
+            arg['gene_file'] =os.path.join(sample_dir, n + '.gene_file.txt.gz')
+            arg['contig_map'] =os.path.join(sample_dir, n + '.contig_map.txt.gz')
+            arg['kp'] =os.path.join(sample_dir, n + '.kp.txt')
             arg['np'] = sample_dir
 
             # make sample dirs
@@ -73,7 +77,7 @@ def spread_args_by_input_files(args):
 
         group_size = len(input_files)
         spread_args[idx]['bname'] = base_name
-        spread_args[idx]['input_dir'] = dirname(abspath(input_files[0])) + '/'
+        spread_args[idx]['input_dir'] =os.path.join(dirname(abspath(input_files[0])), '')
 
         # for paired-end: sanity check for pair counts of two
         if args['input_sequence_type'] == 'paired':
@@ -131,3 +135,32 @@ def get_uniform_extension(files, accepted_extensions):
         exit(1)
 
     return input_extension
+
+
+def clade_path(name, filebase=False):
+    # Initialize segments list
+    segments = []
+
+    # Define the cut positions
+    cuts = [9, 12, 15]
+
+    # Track the previous cut position
+    prev_cut = 0
+
+    # Add segments at specified cut positions
+    for cut in cuts:
+        if len(name) > prev_cut:
+            segment = name[prev_cut:cut] if len(name) >= cut else name[prev_cut:]
+            segments.append(segment)
+            prev_cut = cut
+        else:
+            break
+
+    # Combine the segments to form the path
+    pseudo_path =os.path.join('/db_markers', *segments, '')
+
+    # Add name as file basis
+    if filebase:
+        pseudo_path += name
+
+    return pseudo_path

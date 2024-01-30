@@ -3,9 +3,14 @@ from setuptools import setup, find_packages
 with open('requirements.txt', 'rt') as requirements_file:
     requirements = [line for line in requirements_file.read().splitlines()
                     if not line.startswith('#')]
+def read_version():
+    with open("samestr/__init__.py") as f:
+        for line in f:
+            if line.startswith('__version__'):
+                return line.split('=')[1].strip().strip("'\"")
 
 setup(name='samestr',
-      version='1.2023.04',
+      version=read_version(),
       description='SameStr identifies shared strains between pairs of '
                   'metagenomic samples based on the similarity of SNV profiles.',
       author='Daniel Podlesny',

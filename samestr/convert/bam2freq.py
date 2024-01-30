@@ -21,12 +21,12 @@ def bam2freq(arg):
         return False
 
     if not isfile(arg['kp']):
-        LOG.debug('Piling: %s' % arg['bam'])
+        LOG.debug('Piling: %s' % arg['sorted_bam'])
         oosp.ex(
             'kpileup.py',
             args=[
                 arg['bname'],
-                arg['bam'],
+                arg['sorted_bam'],
                 arg['gene_file'],
                 str(arg['min_base_qual']),
                 str(arg['min_aln_qual']),
@@ -57,8 +57,8 @@ def bam2freq(arg):
         remove(arg['gene_file'])
         remove(arg['contig_map'])
         remove(arg['kp'])
-        remove(arg['bam'])
-        remove(arg['bam'] + '.bai')
+        remove(arg['sorted_bam'])
+        remove(arg['sorted_bam'] + '.bai')
 
     LOG.debug('Finished: %s' % arg['np'])
     return arg

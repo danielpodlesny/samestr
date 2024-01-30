@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import numpy as np
+import gzip
 from os.path import isdir, basename
 from os import makedirs
 
@@ -33,7 +34,7 @@ M = 1
 
 # Initialize numpy arrays for each contig
 x = {}
-for line in open(args.gene_file):
+for line in gzip.open(args.gene_file, 'rt'):
     line = line.rstrip().split()
     contig = line[0]
     beg = int(line[2])
@@ -61,7 +62,7 @@ M = np.array([args.sample])
 # Contig map
 # cmap[genome] = [contig1, contig2, ...]
 cmap = {}
-for line in open(args.map):
+for line in gzip.open(args.map, 'rt'):
     line = line.strip().split()
     genome = line[0]
     contig = line[1]
@@ -101,9 +102,6 @@ for genome in cmap:
         y[genome][0, beg:end, :] = x[contig]
         beg = end
 
-    np_filepath = '%s/%s.%s' % (args.output_dir, genome, args.sample)
-    np.savez_compressed(np_filepath, y[genome], allow_pickle=True)
-
     species = y[genome]
     cov = species.sum(axis=2)
 
@@ -132,18 +130,26 @@ for genome in cmap:
         f_tri = round(n_tri / n_covered, 4)
         f_quat = round(n_quat / n_covered, 4)
         f_poly = round(n_poly / n_covered, 4)
+
     else:
         f_covered, f_mono, f_duo, \
             f_tri, f_quat, f_poly = 0, 0, 0, 0, 0, 0
 
+    np_filepath = '%s/%s.%s' % (args.output_dir, genome, args.sample)
     stat = [
         basename(np_filepath), genome, mean_cov, median_cov, n_sites, n_gaps,
         n_covered, n_mono, n_duo, n_tri, n_quat, n_poly, f_covered, f_mono,
         f_duo, f_tri, f_quat, f_poly
     ]
 
+    # always write to sample stats
     stat = [str(s) for s in stat]
     stats.append('\t'.join(stat))
+
+    # only write to numpy file if there is coverage left after convert criteria
+    if not n_covered == 0:
+        np.savez_compressed(np_filepath, y[genome], allow_pickle=True)
+
 
 with open('%s/%s.aln_stats.txt' % (args.output_dir, args.sample), 'w') as file:
     file.write('\n'.join(stats))
