@@ -1,5 +1,6 @@
 
-from os.path import basename, join, exists
+import os
+from os.path import basename, exists
 import logging
 import warnings
 import numpy as np
@@ -109,7 +110,7 @@ def clade_min_samples(args, n_samples):
 def filter_freqs(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], args['clade'])
+    output_name =os.path.join(args['output_dir'], args['clade'])
     if exists(output_name + '.npz'):
         LOG.info('Skipping %s. Output file exists.' % args['clade'] + '.npz')
         return True
@@ -350,7 +351,7 @@ def filter_freqs(args):
         return False
 
     # Save retained samples to file
-    samples_file = join(args['output_dir'], basename(args['input_name']))
+    samples_file =os.path.join(args['output_dir'], basename(args['input_name']))
     with open(samples_file, 'w') as file:
         txt = '\n'.join(samples)
         file.write(txt)

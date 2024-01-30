@@ -1,5 +1,6 @@
 
-from os.path import basename, join, exists
+import os
+from os.path import basename, exists
 import logging
 import numpy as np
 
@@ -15,7 +16,7 @@ LOG = logging.getLogger(__name__)
 def compare(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], basename(args['input_file']))
+    output_name =os.path.join(args['output_dir'], basename(args['input_file']))
     if exists(output_name):
         LOG.info('Skipping %s. Output file exists.' % args['clade'])
         return True
@@ -127,6 +128,6 @@ def compare(args):
         seqs_msa = MultipleSeqAlignment(seqs_list)
 
         # write alignment fasta
-        msa_filename = join(args['output_dir'], args['clade'] + '.msa.fa')
+        msa_filename =os.path.join(args['output_dir'], args['clade'] + '.msa.fa')
         with open(msa_filename, 'w') as out:
             AlignIO.write(seqs_msa, out, 'fasta')

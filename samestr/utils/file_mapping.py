@@ -1,4 +1,5 @@
-from os.path import dirname, abspath, exists, join
+import os
+from os.path import dirname, abspath, exists
 from samestr.utils import ooSubprocess
 from samestr.utils.utilities import list_str_all_endswith
 
@@ -13,7 +14,7 @@ def set_output_structure(args):
     """
 
     # dest
-    out_dir = abspath(args[0]['output_dir']) + '/'
+    out_dir =os.path.join(abspath(args[0]['output_dir']), '')
     cmd = args[0]['command']
 
     ooSubprocess.makedirs(out_dir)
@@ -24,20 +25,20 @@ def set_output_structure(args):
             n = arg['bname']
 
             # metaphlan
-            arg['sam'] = join(arg['input_dir'], n + '.sam.bz2')
-            arg['bowtie2out'] = join(arg['input_dir'], + n + '.bowtie2out')
+            arg['sam'] =os.path.join(arg['input_dir'], n + '.sam.bz2')
+            arg['bowtie2out'] =os.path.join(arg['input_dir'], n + '.bowtie2out')
             
             # motus
-            arg['bam'] = join(arg['input_dir'], n + '.bam')
+            arg['bam'] =os.path.join(arg['input_dir'], n + '.bam')
 
             # taxonomic profiles
             if not arg['tax_profiles_dir']:
                 arg['tax_profiles_dir'] = arg['input_dir']
             else:
-                arg['tax_profiles_dir'] = join(abspath(arg['tax_profiles_dir']), '')
+                arg['tax_profiles_dir'] =os.path.join(abspath(arg['tax_profiles_dir']), '')
 
             # file name
-            arg['tax_profile'] = join(arg['tax_profiles_dir'], n + arg[
+            arg['tax_profile'] =os.path.join(arg['tax_profiles_dir'], n + arg[
                 'tax_profiles_extension'])
 
             # exists
@@ -46,15 +47,15 @@ def set_output_structure(args):
                 exit(1)
 
             # output
-            sample_dir = join(out_dir, n, '')
+            sample_dir =os.path.join(out_dir, n, '')
 
             ## sam2bam
-            arg['sorted_bam'] = join(sample_dir, n + '.bam')
+            arg['sorted_bam'] =os.path.join(sample_dir, n + '.bam')
 
             ## bam2freq
-            arg['gene_file'] = join(sample_dir, n + '.gene_file.txt.gz')
-            arg['contig_map'] = join(sample_dir, n + '.contig_map.txt.gz')
-            arg['kp'] = join(sample_dir, n + '.kp.txt')
+            arg['gene_file'] =os.path.join(sample_dir, n + '.gene_file.txt.gz')
+            arg['contig_map'] =os.path.join(sample_dir, n + '.contig_map.txt.gz')
+            arg['kp'] =os.path.join(sample_dir, n + '.kp.txt')
             arg['np'] = sample_dir
 
             # make sample dirs
@@ -76,7 +77,7 @@ def spread_args_by_input_files(args):
 
         group_size = len(input_files)
         spread_args[idx]['bname'] = base_name
-        spread_args[idx]['input_dir'] = join(dirname(abspath(input_files[0])), '')
+        spread_args[idx]['input_dir'] =os.path.join(dirname(abspath(input_files[0])), '')
 
         # for paired-end: sanity check for pair counts of two
         if args['input_sequence_type'] == 'paired':
@@ -156,7 +157,7 @@ def clade_path(name, filebase=False):
             break
 
     # Combine the segments to form the path
-    pseudo_path = join('/db_markers', *segments, '')
+    pseudo_path =os.path.join('/db_markers', *segments, '')
 
     # Add name as file basis
     if filebase:

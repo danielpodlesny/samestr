@@ -10,8 +10,9 @@
     to output to compatible numpy format
 """
 
+import os
 from os import remove, makedirs
-from os.path import join, isdir
+from os.path import isdir
 from sys import exit
 
 import random
@@ -175,7 +176,7 @@ def run_align_clean(args, reference_markers, clade_markers_ordered):
         if args['save_marker_aln']:
             formatted_marker_id = sub(r'[^a-zA-Z0-9 \n\.]', '_',
                                       clade_markers_ordered[i])
-            alignment_fn = join(args['output_dir'],
+            alignment_fn =os.path.join(args['output_dir'],
                                 formatted_marker_id + '.marker_aligned.fasta')
             if args['marker_trunc_len'] > 0:
                 alignment_fn = alignment_fn + '.marker_trunc_len_' + str(

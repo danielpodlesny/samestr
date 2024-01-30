@@ -1,5 +1,6 @@
 
-from os.path import basename, join, exists
+import os
+from os.path import basename, exists
 import logging
 import warnings
 import numpy as np
@@ -21,7 +22,7 @@ def coverage(x):
 def aln2stats(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], basename(args['input_file']))
+    output_name =os.path.join(args['output_dir'], basename(args['input_file']))
     if exists(output_name):
         LOG.info('Skipping %s. Output file exists.' % args['clade'])
         return True
