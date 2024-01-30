@@ -3,7 +3,7 @@
 
 
 from sys import stderr, argv
-from os.path import basename, dirname, realpath, isdir, isfile
+from os.path import basename, dirname, realpath, isdir, isfile, join
 from os import environ, makedirs
 from datetime import datetime
 import logging
@@ -31,8 +31,8 @@ from samestr.utils.parse_args import read_params
 from samestr.utils.citations import citations
 
 SAMESTR_DIR = dirname(realpath(__file__))
-CONVERT_DIR = SAMESTR_DIR + '/convert/'
-UTILS_DIR = SAMESTR_DIR + '/utils/'
+CONVERT_DIR = join(SAMESTR_DIR, 'convert', '')
+UTILS_DIR = join(SAMESTR_DIR, 'utils', '')
 environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 
 
@@ -99,7 +99,7 @@ def samestr(input_args):
             if t_found == db_manifest['records']['total_n_files']:
                 LOG.info('Number of files in the SameStr database matches the manifest.')
             if len(t_missing) > 0:
-                outfn = input_args['output_dir'] + '/db_check.tsv'
+                outfn = join(input_args['output_dir'], 'db_check.tsv')
                 LOG.warning('Files missing from the SameStr database: %s. Saving to %s' % (len(t_missing), outfn))
                 if not isdir(input_args['output_dir']):
                     makedirs(input_args['output_dir'])
@@ -144,8 +144,9 @@ def samestr(input_args):
     ## process individual commands
     if input_args['command'] == 'db':
         
-        if not isdir(input_args['output_dir'] + '/db_markers/'):
-            makedirs(input_args['output_dir'] + '/db_markers/')
+        outdir = join(input_args['output_dir'], 'db_markers', '')
+        if not isdir(outdir):
+            makedirs(outdir)
 
         # expand and generate db from markers/info files
         generate_db(input_args)
@@ -311,7 +312,7 @@ def samestr(input_args):
     
     # write current command to logfile
     samestr_cmd['date-end'] = '%s' % datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logfile_fn = input_args['output_dir'] + '/command_log.json'
+    logfile_fn = join(input_args['output_dir'], 'command_log.json')
     if isfile(logfile_fn):
         logfile = read_json(logfile_fn)
         iter = max([int(k) for k in logfile.keys()]) + 1

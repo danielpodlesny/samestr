@@ -127,6 +127,6 @@ def compare(args):
         seqs_msa = MultipleSeqAlignment(seqs_list)
 
         # write alignment fasta
-        msa_filename = args['output_dir'] + '/' + args['clade'] + '.msa.fa'
+        msa_filename = join(args['output_dir'], args['clade'] + '.msa.fa')
         with open(msa_filename, 'w') as out:
             AlignIO.write(seqs_msa, out, 'fasta')
