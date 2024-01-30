@@ -76,7 +76,7 @@ def spread_args_by_input_files(args):
 
         group_size = len(input_files)
         spread_args[idx]['bname'] = base_name
-        spread_args[idx]['input_dir'] = dirname(abspath(input_files[0])) + '/'
+        spread_args[idx]['input_dir'] = join(dirname(abspath(input_files[0])), '')
 
         # for paired-end: sanity check for pair counts of two
         if args['input_sequence_type'] == 'paired':
