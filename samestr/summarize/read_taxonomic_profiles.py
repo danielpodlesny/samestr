@@ -177,7 +177,7 @@ def binarize_taxonomic_profile(df):
     Take a taxonomic profile dataframe and return a binary dataframe
     """
     # convert to binary > numeric
-    return df.applymap(lambda x: 1 if x != 0 else 0)
+    return df.applymap(lambda x: int(bool(x)))
 
 
 def get_taxon_cooccurrence(wide_taxonomic_profile):
