@@ -331,9 +331,9 @@ def filter_freqs(args):
         remaining_pos = sorted(initial_pos - removed_pos)
         assert len(remaining_pos) == x.shape[1], "The number of remaining positions does not match the modified array shape."
 
-        with open(output_name + '.pos.txt', 'w') as file:
+        with open(output_name + '.pos.txt', 'w') as ofn:
             txt = '\n'.join([str(pos) for pos in remaining_pos])
-            file.write(txt)
+            ofn.write(txt)
 
     LOG.info('Remaining positions: %s.' % x.shape[1])
 
