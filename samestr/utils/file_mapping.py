@@ -156,7 +156,7 @@ def clade_path(name, filebase=False):
             break
 
     # Combine the segments to form the path
-    pseudo_path = '/db_markers/' + '/'.join(segments) + '/'
+    pseudo_path = join('/db_markers', *segments, '')
 
     # Add name as file basis
     if filebase:
