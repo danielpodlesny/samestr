@@ -2,7 +2,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg">
-  <img alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg" width="200px"> 
+  <img src="https://raw.githubusercontent.com/danielpodlesny/samestr/updates/sgb_motus_support/assets/SameStr-Logo.v1-light.svg" width="200px"> 
 </picture>
 
 #
