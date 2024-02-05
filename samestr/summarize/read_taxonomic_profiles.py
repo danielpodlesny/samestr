@@ -224,7 +224,7 @@ def get_taxon_cooccurrences(wide_taxonomic_profile, db_taxonomy):
     for tax_level in tax_levels:
 
         # groupsum the dataframe to the specified taxonomic level
-        df = df_full[[tax_level] + sample_cols].groupby(tax_level).sum()
+        df = df_full[[tax_level] + sample_cols].groupby(tax_level).sum(numeric_only=True)
         cooc = get_taxon_cooccurrence(df)
 
         # renaming the cooc column to include the taxonomic level
@@ -258,7 +258,7 @@ def get_taxon_counts(wide_taxonomic_profile, db_taxonomy):
     for tax_level in tax_levels:
 
         # groupsum the dataframe to the specified taxonomic level
-        df = df_full[[tax_level] + sample_cols].groupby(tax_level).sum()
+        df = df_full[[tax_level] + sample_cols].groupby(tax_level).sum(numeric_only=True)
 
         # get the number of taxa for each sample
         count = binarize_taxonomic_profile(df).sum(axis=0)
