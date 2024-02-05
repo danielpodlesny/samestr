@@ -4,16 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "samestr"
-version = "1.2023.04"
+version = "1.2024.01-1"
 authors = [
   { name="Daniel Podlesny", email="daniel.podlesny@embl.de" },
 ]
 description = 'SameStr identifies shared strains between pairs of metagenomic samples based on the similarity of SNV profiles.'
 readme = "README.md"
 requires-python = ">=3.9"
+license = { file = "LICENSE" }
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",

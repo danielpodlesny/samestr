@@ -1,3 +1,3 @@
 from .summarize import summarize
-from .read_metaphlan_data import merge_horizontal_metaphlan_tables, get_taxon_counts, get_taxon_cooccurrences, filter_metaphlan_profile, separate_metaphlan_taxonomy
+from .read_taxonomic_profiles import merge_horizontal_taxonomic_profile, get_taxon_counts, get_taxon_cooccurrences
 from .read_samestr_data import read_samestr_data

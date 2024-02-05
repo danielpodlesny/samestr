@@ -1,5 +1,6 @@
 
-from os.path import basename, join, exists
+import os
+from os.path import basename, exists
 import logging
 import numpy as np
 
@@ -15,9 +16,9 @@ LOG = logging.getLogger(__name__)
 def compare(args):
 
     # if exists, skip
-    output_name = join(args['output_dir'], basename(args['input_file']))
+    output_name =os.path.join(args['output_dir'], basename(args['input_file']))
     if exists(output_name):
-        LOG.info('Skipping %s. Output file exists.' % args['species'])
+        LOG.info('Skipping %s. Output file exists.' % args['clade'])
         return True
 
     # load sample order
@@ -29,7 +30,7 @@ def compare(args):
         return False
 
     LOG.info('Comparing %s found in %s samples.' %
-             (args['species'], len(samples)))
+             (args['clade'], len(samples)))
 
     # load freqs
     x = load_numpy_file(args['input_file'])
@@ -86,15 +87,15 @@ def compare(args):
             '\t'.join([str(n) for n in np.asarray(fraction_phenotype)]))
 
     # write matrix files
-    with open('%s/%s.closest.txt' % (args['output_dir'], args['species']),
+    with open('%s/%s.closest.txt' % (args['output_dir'], args['clade']),
               'w') as out:
         out.write('\n'.join(shortest_distance_matrix))
 
-    with open('%s/%s.overlap.txt' % (args['output_dir'], args['species']),
+    with open('%s/%s.overlap.txt' % (args['output_dir'], args['clade']),
               'w') as out:
         out.write('\n'.join(shared_overlap_matrix))
 
-    with open('%s/%s.fraction.txt' % (args['output_dir'], args['species']),
+    with open('%s/%s.fraction.txt' % (args['output_dir'], args['clade']),
               'w') as out:
         out.write('\n'.join(fraction_phenotype_matrix))
 
@@ -127,6 +128,6 @@ def compare(args):
         seqs_msa = MultipleSeqAlignment(seqs_list)
 
         # write alignment fasta
-        msa_filename = args['output_dir'] + '/' + args['species'] + '.msa.fa'
+        msa_filename =os.path.join(args['output_dir'], args['clade'] + '.msa.fa')
         with open(msa_filename, 'w') as out:
             AlignIO.write(seqs_msa, out, 'fasta')
