@@ -57,8 +57,13 @@ def summarize(args):
     cooc_data = pd.merge(taxon_cooc, strain_cooc, on=['row', 'col'], how='outer')
     cooc_data['analyzed_strain'] = cooc_data['analyzed_strain'].fillna(0)
     cooc_data['shared_strain'] = cooc_data['shared_strain'].fillna(0)
+
+    new_cols = ["row", "col"] + [c for c in cooc_data.columns if c not in ("row", "col")]
+
+    cooc_data = cooc_data[new_cols]
+
     cooc_data.iloc[:, 2:] = cooc_data.iloc[:, 2:].mask(
-        cooc_data.iloc[:, 2:].isna(), other=np.nan).astype('Int64')
+        cooc_data.iloc[:, 2:].isna(), other=np.nan).astype("Int64")
 
     # write output
     taxon_counts.to_csv(os.path.join(args['output_dir'], 'taxon_counts.tsv'), 
