@@ -49,19 +49,27 @@ def read_metaphlan_profile(file_fn):
         col_names = ['clade', 'relative_abundance']
     else:
         data_lines = [line for line in lines if not line.startswith('#')]
-        col_names = ['clade', 'NCBI_tax_id', 'relative_abundance']
+        col_num = len(data_lines[0].strip('\n').split('\t'))
+        if col_num == 2:
+            col_names = ['clade', 'relative_abundance']
+        elif col_num == 3:
+            col_names = ['clade', 'NCBI_tax_id', 'relative_abundance']
+        elif col_num == 4:
+            col_names = ['clade', 'NCBI_tax_id', 'relative_abundance', 'additional_species']
 
     # Parse the data
-    data = [line.strip().split('\t#')[0].split('\t')[:3] for line in data_lines] 
+    data = [line.strip('\n').split('\t') for line in data_lines] 
     df = pd.DataFrame(data, columns=col_names)
     df['file_fn'] = basename(file_fn)
 
-    # Drop the 'NCBI_tax_id' column if present
-    if 'NCBI_tax_id' in df.columns:
-        df = df.drop('NCBI_tax_id', axis=1)
+    # Select only the clade and relative_abundance cols
+    df = df[['file_fn', 'clade', 'relative_abundance']]
+
+    # force relative abundances to numeric (example problem: 7e-05)
+    df['relative_abundance'] = pd.to_numeric(df['relative_abundance'], errors='coerce')
 
     # Split lineage by pipe, keeping only the last level
-    df['clade'] = df['clade'].str.split('|').str[-1]
+    df.loc[:, 'clade'] = df['clade'].str.split('|').str[-1]
 
     # Filter for t__ (SGB-level) only and assign the result back to df
     df = df[df['clade'].str.startswith('t__')]
@@ -214,7 +222,7 @@ def get_taxon_cooccurrences(wide_taxonomic_profile, db_taxonomy):
     this does not return self-co-occurrences and only one side of the matrix
     """
     # join dataframe with taxonomy by 'clade'
-    df_full = pd.merge(wide_taxonomic_profile, db_taxonomy, on='clade', how='left')
+    df_full = pd.merge(db_taxonomy, wide_taxonomic_profile, on='clade', how='right')
 
     # get the available taxonomic levels from db_taxonomy header
     tax_levels = db_taxonomy.columns
@@ -223,10 +231,12 @@ def get_taxon_cooccurrences(wide_taxonomic_profile, db_taxonomy):
 
     for tax_level in tax_levels:
 
-        # groupsum the dataframe to the specified taxonomic level
-        df = df_full[[tax_level] + sample_cols].groupby(tax_level).sum(numeric_only=True)
-        cooc = get_taxon_cooccurrence(df)
+        df_tax_level = df_full[[tax_level] + sample_cols]
 
+        # groupsum the dataframe to the specified taxonomic level
+        df = df_tax_level.groupby(tax_level).sum(numeric_only=True)
+
+        cooc = get_taxon_cooccurrence(df)
         # renaming the cooc column to include the taxonomic level
         cooc.rename(columns={'cooc': 'shared_' + tax_level}, inplace=True)
 
@@ -237,6 +247,8 @@ def get_taxon_cooccurrences(wide_taxonomic_profile, db_taxonomy):
     # and fill in the missing values with 0
     cooc = reduce(lambda left, right: pd.merge(left, right, on=[
                   'row', 'col'], how='outer'), coocs).fillna(0)
+    
+    LOG.debug(cooc)
 
     return cooc
 
@@ -248,7 +260,7 @@ def get_taxon_counts(wide_taxonomic_profile, db_taxonomy):
     and return them in a dataframe
     """
     # join dataframe with taxonomy by 'clade'
-    df_full = pd.merge(wide_taxonomic_profile, db_taxonomy, on='clade', how='left')
+    df_full = pd.merge(db_taxonomy, wide_taxonomic_profile, on='clade', how='right')
 
     # get the available taxonomic levels from db_taxonomy header
     tax_levels = db_taxonomy.columns
