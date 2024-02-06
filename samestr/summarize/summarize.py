@@ -37,8 +37,6 @@ def summarize(args):
     LOG.info('Reading {} taxonomic profiles from {}'.format(
         len(tax_profile_list), args['tax_profiles_dir']))
     tax_profiles = get_clade_profile(tax_profile_list, db_source=db_manifest['database']['name'])
-    tax_profiles.columns = tax_profiles.columns.str.replace(
-        args['tax_profiles_extension'], '', regex=False)
     
     # get kingdom:species counts and cooccurrences
     taxon_counts = get_taxon_counts(tax_profiles, db_taxonomy)
@@ -47,6 +45,8 @@ def summarize(args):
     # read samestr results
     LOG.info('Reading SameStr data from {}'.format(args['input_dir']))
     sstr_data = read_samestr_data(args['input_dir'])
+    sstr_data.to_csv(os.path.join(args['output_dir'], 'sstr_counts.tsv'), 
+                        sep='\t', index=False)
 
     # add annotation for strain events and get possible and detected strain cooccurrences
     sstr_data, strain_cooc = analyze_strain_events(sstr_data,
@@ -57,8 +57,10 @@ def summarize(args):
     cooc_data = pd.merge(taxon_cooc, strain_cooc, on=['row', 'col'], how='outer')
     cooc_data['analyzed_strain'] = cooc_data['analyzed_strain'].fillna(0)
     cooc_data['shared_strain'] = cooc_data['shared_strain'].fillna(0)
+
+    # make all but 'row', 'col' numeric
     cooc_data.iloc[:, 2:] = cooc_data.iloc[:, 2:].mask(
-        cooc_data.iloc[:, 2:].isna(), other=np.nan).astype('Int64')
+        cooc_data.iloc[:, 2:].isna(), other=np.nan).astype("Int64")
 
     # write output
     taxon_counts.to_csv(os.path.join(args['output_dir'], 'taxon_counts.tsv'), 

@@ -206,10 +206,6 @@ def samestr(input_args):
                 continue
 
             clade_file_dict.setdefault(clade, []).append([sample, file_path])
-            if clade not in clade_file_dict:
-                clade_file_dict[clade] = [[sample, file_path]]
-            else:
-                clade_file_dict[clade] += [[sample, file_path]]
 
         cmd_args = [
                {
