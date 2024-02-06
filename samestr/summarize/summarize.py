@@ -45,8 +45,6 @@ def summarize(args):
     # read samestr results
     LOG.info('Reading SameStr data from {}'.format(args['input_dir']))
     sstr_data = read_samestr_data(args['input_dir'])
-    sstr_data.to_csv(os.path.join(args['output_dir'], 'sstr_counts.tsv'), 
-                        sep='\t', index=False)
 
     # add annotation for strain events and get possible and detected strain cooccurrences
     sstr_data, strain_cooc = analyze_strain_events(sstr_data,
