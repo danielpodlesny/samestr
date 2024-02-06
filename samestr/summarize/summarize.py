@@ -37,6 +37,8 @@ def summarize(args):
     LOG.info('Reading {} taxonomic profiles from {}'.format(
         len(tax_profile_list), args['tax_profiles_dir']))
     tax_profiles = get_clade_profile(tax_profile_list, db_source=db_manifest['database']['name'])
+    tax_profiles.columns = tax_profiles.columns.str.replace(
+        args['tax_profiles_extension'], '', regex=False)
     
     # get kingdom:species counts and cooccurrences
     taxon_counts = get_taxon_counts(tax_profiles, db_taxonomy)
