@@ -16,15 +16,18 @@ SameStr's shared strains are specific to related but not unrelated sample pairs 
 
 While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
 
-## Updates: 2024.1
-Major Updates:
-- Support for [mOTUs](https://github.com/motu-tool/mOTUs) markers (v2, 2.5, 3, +)
-- Support for MetaPhlAn SGB-level markers (mpa_vJun23_CHOCOPhlAnSGB_202307, mpa_vOct22_CHOCOPhlAnSGB_202212, mpa_vJun23_CHOCOPhlAnSGB_202307, +)
-- Database has improved footprint, structure, integrity check
+## Recent Updates:
+- 2024.2 fixed some bugs introduced in 2024.1
+- 2024.1 added support for [mOTUs](https://github.com/motu-tool/mOTUs) markers (v2, 2.5, 3, +)
+- 2024.1 added support for MetaPhlAn SGB-level markers (mpa_vJun23_CHOCOPhlAnSGB_202307, mpa_vOct22_CHOCOPhlAnSGB_202212, mpa_vJun23_CHOCOPhlAnSGB_202307, +)
+- 2024.1 improved the database footprint and structure and introduced a database integrity check
+- 2024.1 is a major rewrite to support custom databases in the future. Command line options have slightly changed in naming.
 
-Minor Updates:
-- Rewrite to support custom databases in the future
-- Changes in command options
+SameStr databases generated from [mOTUs](https://github.com/motu-tool/mOTUs) and [MetaPhlan](https://github.com/biobakery/MetaPhlAn) markers are now available on Zenodo:
+- SameStr databases: mOTUs [DOI: 10.5281/zenodo.10640396](https://zenodo.org/doi/10.5281/zenodo.10640396)
+- SameStr databases: MetaPhlAn [DOI: 10.5281/zenodo.10636302](https://zenodo.org/doi/10.5281/zenodo.10636302)
+
+Instead of generating the database files from scratch with `samestr db`, you can download the database version that you used for alignment, extract it, and start processing your data with `samestr convert` or `samestr extract`.
 
 ## Citation
 Podlesny, D., Arze, C., Dörner, E., Verma, S., Dutta, S., Walter, J., & Fricke, W. F. (2022). Metagenomic strain detection with SameStr: identification of a persisting core gut microbiota transferable by fecal transplantation. Microbiome, 10(1), 53. https://doi.org/10.1186/s40168-022-01251-w
