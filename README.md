@@ -23,7 +23,7 @@ While the program does not reconstruct conspecific marker sequences, SameStr's o
 - 2024.1 improved the database footprint and structure and introduced a database integrity check
 - 2024.1 is a major rewrite to support custom databases in the future. Command line options have slightly changed in naming.
 
-SameStr databases generated from [mOTUs](https://github.com/motu-tool/mOTUs) and [MetaPhlan](https://github.com/biobakery/MetaPhlAn) markers are now available on Zenodo:
+SameStr databases generated from [mOTUs](https://github.com/motu-tool/mOTUs) and [MetaPhlan](https://github.com/biobakery/MetaPhlAn) markers are now available on Zenodo in the [Zenodo SameStr Community](https://zenodo.org/communities/samestr):
 - SameStr databases: mOTUs [DOI: 10.5281/zenodo.10640396](https://zenodo.org/doi/10.5281/zenodo.10640396)
 - SameStr databases: MetaPhlAn [DOI: 10.5281/zenodo.10636302](https://zenodo.org/doi/10.5281/zenodo.10636302)
 
