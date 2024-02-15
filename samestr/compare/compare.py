@@ -27,7 +27,7 @@ def compare(args):
 
     # skip if fewer than args['samples_min_n'] samples
     if not len(samples) > 1:
-        return False
+        return None
 
     LOG.info('Comparing %s found in %s samples.' %
              (args['clade'], len(samples)))

@@ -18,7 +18,7 @@ def bam2freq(arg):
     oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
     if not arg:
         LOG.error('Empty input')
-        return False
+        return None
 
     if not isfile(arg['kp']):
         LOG.debug('Piling: %s' % arg['sorted_bam'])

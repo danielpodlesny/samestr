@@ -126,7 +126,7 @@ def filter_freqs(args):
 
     # skip if fewer than args['clade_min_samples'] samples
     if not clade_min_samples(args, len(samples)):
-        return False
+        return None
 
     # load freqs
     x = load_numpy_file(args['input_file'])
@@ -280,7 +280,7 @@ def filter_freqs(args):
 
     # 4.4 Sample minimum
     if not clade_min_samples(args, x.shape[0]):
-        return False
+        return None
 
     # 5 Filter Positions [Global]
 
@@ -348,7 +348,7 @@ def filter_freqs(args):
 
     # 7.2 Sample minimum
     if not clade_min_samples(args, x.shape[0]):
-        return False
+        return None
 
     # Save retained samples to file
     samples_file =os.path.join(args['output_dir'], basename(args['input_name']))

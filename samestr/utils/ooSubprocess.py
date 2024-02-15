@@ -250,7 +250,7 @@ def parallelize(func, args, nprocs=1, use_threads=False):
             results = serialize(func, args)
         except Exception as e:
             results = serialize(e)
-    return results
+    return [r for r in results if r is not None]
 
 
 def parallelize_async(func, args, nprocs=1, use_threads=False):
@@ -267,14 +267,14 @@ def parallelize_async(func, args, nprocs=1, use_threads=False):
         results = [r.get() for r in app_results]
     else:
         results = serialize(func, args)
-    return results
+    return [r for r in results if r is not None]
 
 
 def serialize(func, args):
     results = []
     for arg in args:
         results.append(func(arg))
-    return results
+    return [r for r in results if r is not None]
 
 
 def print_stderr(*args):
