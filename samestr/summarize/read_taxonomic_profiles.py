@@ -63,7 +63,7 @@ def read_metaphlan_profile(file_fn):
     df['file_fn'] = basename(file_fn)
 
     # Select only the clade and relative_abundance cols
-    df = df[['file_fn', 'clade', 'relative_abundance']]
+    df = df[['file_fn', 'clade', 'relative_abundance']].copy()
 
     # force relative abundances to numeric (example problem: 7e-05)
     df['relative_abundance'] = pd.to_numeric(df['relative_abundance'], errors='coerce')
@@ -71,9 +71,16 @@ def read_metaphlan_profile(file_fn):
     # Split lineage by pipe, keeping only the last level
     df.loc[:, 'clade'] = df['clade'].str.split('|').str[-1]
 
-    # Filter for t__ (SGB-level) only and assign the result back to df
-    df = df[df['clade'].str.startswith('t__')]
+    # Remove 'UNCLASSIFIED'
+    df = df[df['clade'] != 'UNCLASSIFIED']
+    if len(df) == 0:
+        LOG.warning('The profile only included unclassified taxa.')
 
+    # Filter for t__ (SGB-level) only
+    df = df[df['clade'].str.startswith('t__')]
+    if len(df) == 0:
+        LOG.warning("The profile did not contain any clades at the required level 't__'.")
+    
     return df
 
 def read_motus_profile(file_fn):
@@ -116,15 +123,22 @@ def read_motus_profile(file_fn):
         return match.group(1) if match else clade_name
     df['clade'] = df['clade'].apply(extract_or_keep_original)
 
-    # Convert 'relative_abundance' to numeric and filter rows where it's greater than 0
-    df['relative_abundance'] = pd.to_numeric(df['relative_abundance'], errors='coerce')
-    df = df[df['relative_abundance'] > 0]
-
     # Add file name as a column
     df['file_fn'] = basename(file_fn)
 
-    # Drop the 'NCBI_tax_id' column if it's present
-    df = df.drop('NCBI_tax_id', axis=1, errors='ignore')
+    # Select only the clade and relative_abundance cols
+    df = df[['file_fn', 'clade', 'relative_abundance']].copy()
+
+    # Remove 'unassigned'
+    df = df[df['clade'] != 'unassigned']
+    if len(df) == 0:
+        LOG.warning('The profile only included unclassified taxa.')
+
+    # Convert 'relative_abundance' to numeric and filter rows where it's greater than 0
+    df['relative_abundance'] = pd.to_numeric(df['relative_abundance'], errors='coerce')
+    df = df[df['relative_abundance'] > 0]
+    if len(df) == 0:
+        LOG.warning('No taxa deteced in the profile.')
 
     return df
 
@@ -147,8 +161,11 @@ def merge_horizontal_taxonomic_profile(read_function, file_fns: list = None):
     dfs = [df.set_index('clade') for df in dfs]
 
     # rename columns to file name
-    dfs = [df.rename(columns={'relative_abundance': df['file_fn'][0]}).drop(
-        columns=['file_fn']) for df in dfs]
+    dfs = [df.rename(columns={'relative_abundance': df['file_fn'].iloc[0]}).drop(columns=['file_fn'])
+       for df in dfs if not df.empty and 'file_fn' in df.columns and len(df['file_fn']) > 0]
+    
+    if len(dfs) == 0:
+        return None
 
     # join the dataframes
     dfs = pd.concat(dfs, axis=1, join='outer').fillna(0)
@@ -176,6 +193,8 @@ def get_clade_profile_dict(ifn, db_source=['MetaPhlAn', 'mOTUs']):
     return all clades and relative abundances as dict
     """
     profile = get_clade_profile(ifn=ifn, db_source=db_source)
+    if profile is None:
+        return None
 
     return profile.set_index('clade')[profile.columns[1]].to_dict()
 

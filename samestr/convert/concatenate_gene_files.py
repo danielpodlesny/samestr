@@ -32,8 +32,8 @@ def concatenate_gene_files(arg):
     LOG.debug('Gathering: %s' % arg['tax_profile'])
     clades = get_clade_profile_dict([arg['tax_profile']], db_source=db_manifest['database']['name'])
     if not clades:
-        LOG.error('No clade classified: %s' % arg['bname'])
-        return False
+        LOG.warning('No clade classified: %s' % arg['bname'])
+        return None
     LOG.debug('Detected clades: %s' % ', '.join(clades))
 
     # create a lists of gene and contig map files

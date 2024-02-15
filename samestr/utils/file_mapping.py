@@ -119,7 +119,7 @@ def get_accepted_extension(file, accepted_extensions):
         e = '.' + '.'.join(file.rsplit('.', 2)[-2:])
         if e in accepted_extensions:
             return e
-    return False
+    return None
 
 
 def get_uniform_extension(files, accepted_extensions):

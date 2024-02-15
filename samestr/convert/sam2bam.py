@@ -64,6 +64,11 @@ def sam2bam(arg):
             LOG.error('Error parsing input sam/bam files: [%s/%s]' % (arg['sam'], arg['bam']))
             exit(1)
 
+        # check that file was generated
+        if not isfile(arg['sorted_bam']):
+            LOG.error('No output generated from sam/bam files: [%s/%s]' % (arg['sam'], arg['bam']))
+            return None
+
         # index
         if not isfile(arg['sorted_bam'] + '.bai'):
             oosp.ex('samtools', args=['index', arg['sorted_bam']], verbose=False)
