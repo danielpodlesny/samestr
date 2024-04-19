@@ -19,9 +19,9 @@ RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.s
 bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/software/miniconda3 && \
 rm -f Miniconda3-latest-Linux-x86_64.sh 
 
+# sed -i "s/=0.1.19//" environment.yml && \
 RUN git clone https://github.com/cschu/samestr.git && \
-cd samestr && \
-  sed -i "s/=0.1.19//" environment.yml && \
+cd samestr && \  
   /opt/software/miniconda3/bin/conda install -y python=3.9 && \ 
   /opt/software/miniconda3/bin/conda env update -n base --file environment.yml && \
   /opt/software/miniconda3/bin/pip install . 
