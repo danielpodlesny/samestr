@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-LABEL maintainer="cschu1981@gmail.com"
+LABEL maintainer="daniel.podlesny@gmail.com"
 LABEL version="1.2024.02-1"
 LABEL description="samestr docker image"
 
@@ -19,8 +19,7 @@ RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.s
 bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/software/miniconda3 && \
 rm -f Miniconda3-latest-Linux-x86_64.sh 
 
-# sed -i "s/=0.1.19//" environment.yml && \
-RUN git clone https://github.com/cschu/samestr.git && \
+RUN git clone https://github.com/danielpodlesny/samestr.git && \
 cd samestr && \  
   /opt/software/miniconda3/bin/conda install -y python=3.9 && \ 
   /opt/software/miniconda3/bin/conda env update -n base --file environment.yml && \
