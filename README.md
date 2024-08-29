@@ -7,8 +7,10 @@
 
 #
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![PyPI version](https://badge.fury.io/py/samestr.svg)](https://badge.fury.io/py/samestr)
-[![Bioconda](https://anaconda.org/bioconda/samestr/badges/version.svg)](http://bioconda.github.io/recipes/samestr/README.html)
+[![PyPI version](https://img.shields.io/pypi/v/samestr)](https://pypi.python.org/pypi/samestr)
+[![Bioconda version](https://anaconda.org/bioconda/samestr/badges/version.svg)](http://bioconda.github.io/recipes/samestr/README.html)
+[![Bioconda downloads](https://anaconda.org/bioconda/samestr/badges/downloads.svg)](http://bioconda.github.io/recipes/samestr/README.html)
+
 
 **SameStr** was developed as a bioinformatic tool for the identification of shared microbial strains in metagenomic shotgun sequencing data. SameStr uses clade-specific markers from [MetaPhlan](https://github.com/biobakery/MetaPhlAn) or [mOTUs](https://github.com/motu-tool/mOTUs) to identify and compare SNV profiles. In this, SameStr is not constrained to comparing the majority variants but considers all possible variants in the alignments.
 
@@ -17,6 +19,7 @@ SameStr's shared strains are specific to related but not unrelated sample pairs 
 While the program does not reconstruct conspecific marker sequences, SameStr's outputs (numpy format) can be used for strain composition modelling with probabilistic algorithms.
 
 ## Recent Updates:
+- 2024.8 added precomputed reference databases to Zenodo, added example data, and removed defaults from the anaconda channels
 - 2024.2 fixed some bugs introduced in 2024.1
 - 2024.1 added support for [mOTUs](https://github.com/motu-tool/mOTUs) markers (v2, 2.5, 3, +)
 - 2024.1 added support for MetaPhlAn SGB-level markers (mpa_vJun23_CHOCOPhlAnSGB_202307, mpa_vOct22_CHOCOPhlAnSGB_202212, mpa_vJun23_CHOCOPhlAnSGB_202307, +)
