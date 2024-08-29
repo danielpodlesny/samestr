@@ -1,0 +1,4 @@
+Name	count_kingdom	count_phylum	count_class	count_order	count_family	count_genus	count_species	count_clade
+Sample1.mp4	3	8	22	29	40	91	132	139
+Sample3.mp4	1	4	10	15	24	48	73	73
+Sample2.mp4	1	7	13	17	24	40	69	72

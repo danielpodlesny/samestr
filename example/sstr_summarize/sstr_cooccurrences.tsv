@@ -1,0 +1,4 @@
+row	col	shared_kingdom	shared_phylum	shared_class	shared_order	shared_family	shared_genus	shared_species	shared_clade	shared_strain	analyzed_strain
+Sample1.mp4	Sample3.mp4	1	4	9	14	22	32	39	37	0	0
+Sample1.mp4	Sample2.mp4	1	5	10	14	20	27	32	33	0	0
+Sample2.mp4	Sample3.mp4	1	4	7	11	18	28	37	37	7	14
