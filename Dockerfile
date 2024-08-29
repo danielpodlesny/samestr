@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 LABEL maintainer="daniel.podlesny@gmail.com"
-LABEL version="1.2024.02-1"
+LABEL version="1.2024.08"
 LABEL description="samestr docker image"
 
 
