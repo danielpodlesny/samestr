@@ -45,7 +45,7 @@ for line in gzip.open(args.gene_file, 'rt'):
 with open(args.kp, 'r') as f:
     for line in f.readlines():
         line = line.rstrip().split()
-        if len(line) == 10 and line[0] != 'Sample':
+        if len(line) == 10 and line[0] != 'Sample' and line[7] != 'N':
             sample = line[0]
             i = 0
             contig = line[1]
