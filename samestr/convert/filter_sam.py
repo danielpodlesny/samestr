@@ -62,8 +62,8 @@ for line in fhandle:
     strand = int(code[-5])
     ref = sline[2]
     cigar = sline[5]
-    cigar = re.sub('H','S',cigar)
-    sline[5] = cigar
+    # cigar = re.sub('H','S',cigar)
+    # sline[5] = cigar
     seq = sline[9]
     qual = sline[10]
 
@@ -92,8 +92,8 @@ for line in fhandle:
         cqual = qual
         cstrand = strand
 
-    # filter by percent identity
-    if 1.*match/tlen < 1.*pctid/100.:
+    # filter by percent identity and minimum length
+    if 1.*match/tlen < 1.*pctid/100. or tlen < minlen:
         continue
 
     # always set the seq/qual columns
@@ -102,7 +102,7 @@ for line in fhandle:
         sline[10] = cqual
     else:
         sline[9] = reverse_complement(cseq)
-        sline[10] = reverse_complement(cseq)
+        sline[10] = cqual[::-1]
 
     # ensure that the cigar matches the sequence
     if tlen != (len(cseq) - hbeg - hend):
