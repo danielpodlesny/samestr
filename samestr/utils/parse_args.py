@@ -49,6 +49,12 @@ def read_params():
         type=str,
         help='Set the verbosity of the program. '
              'Options: DEBUG, INFO, WARNING, ERROR, CRITICAL.')
+    
+    parser.add_argument(
+        '--random-seed',
+        type=int,
+        help='Set random seed for reproducible runs (affects compare, extract, filter.)'
+    )
 
     # add subparsers for different commands
     subparser = parser.add_subparsers(

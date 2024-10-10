@@ -11,6 +11,8 @@ import logging
 import logging.config
 import pathlib
 
+import numpy as np
+
 
 from samestr import __version__
 from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
@@ -327,6 +329,9 @@ if __name__ == "__main__":
     if args['citation'] is not None:
         print(citations[args['citation']])
         exit(0)
+
+    if args.get('random_seed') is not None:
+        np.random.seed(args['random_seed'])
 
     logging.basicConfig(
     level=getattr(logging, args['verbosity']),
