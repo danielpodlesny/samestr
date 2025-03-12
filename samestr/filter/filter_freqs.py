@@ -54,13 +54,13 @@ def trunc_marker_ends(marker_pos, trunc_len):
 
         if marker_len_cutoff > marker_len:
             # drop entirely if trunc_len * 2 longer than marker:
-            LOG.info('Marker %s shorter than total `trunc_len`' % marker)
+            LOG.info('Discarding marker %s as it is shorter than total `trunc_len=%s`' % marker, marker_len_cutoff)
             trunc_pos.update(range(marker_start, marker_end))
         else:
             # set trunc positions
             trunc_pos.update(
                 range(marker_start, marker_start + trunc_len),
-                range(marker_start, marker_start + trunc_len),
+                range(marker_end - trunc_len, marker_end),
             )
 
     return trunc_pos
