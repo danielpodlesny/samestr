@@ -1,7 +1,7 @@
 FROM condaforge/miniforge3:24.7.1-0
 
 LABEL maintainer="daniel.podlesny@gmail.com"
-LABEL version="1.2024.08"
+LABEL version="1.2025.03"
 LABEL description="samestr docker image"
 
 
@@ -18,5 +18,6 @@ ADD samestr /opt/software/samestr/samestr/
 
 RUN cd /opt/software/samestr && \
   conda install -y --override-channels -c conda-forge -c bioconda python=3.9 && \
-  conda env update -n base --file environment.yml && \
-  pip install .
+  conda env update -n base --file environment.yml
+  
+RUN cd /opt/software/samestr && pip install .

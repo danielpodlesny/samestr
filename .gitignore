@@ -27,3 +27,4 @@ venv/
 
 #VSCode
 .vscode/
+.qodo
