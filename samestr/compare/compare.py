@@ -1,14 +1,15 @@
 
+import logging
 import os
 from os.path import basename, exists
-import logging
-import numpy as np
 
+import numpy as np
 from Bio import Seq, SeqRecord, AlignIO
 from Bio.Align import MultipleSeqAlignment
 
 from samestr.utils.utilities import load_numpy_file
 from samestr.filter import consensus
+
 
 LOG = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ LOG = logging.getLogger(__name__)
 def compare(args):
 
     # if exists, skip
-    output_name =os.path.join(args['output_dir'], basename(args['input_file']))
+    output_name = os.path.join(args['output_dir'], basename(args['input_file']))
     if exists(output_name):
         LOG.info('Skipping %s. Output file exists.' % args['clade'])
         return True
@@ -26,7 +27,7 @@ def compare(args):
         samples = file.read().strip().split('\n')
 
     # skip if fewer than args['samples_min_n'] samples
-    if not len(samples) > 1:
+    if len(samples) < 2:
         return None
 
     LOG.info('Comparing %s found in %s samples.' %
@@ -44,7 +45,7 @@ def compare(args):
         [1, 0, 0, 0],  # A
         [0, 1, 0, 0],  # C
         [0, 0, 1, 0],  # G
-        [0, 0, 0, 1]  # T
+        [0, 0, 0, 1],  # T
     ]
 
     # rename samples to samples.dom
@@ -62,42 +63,30 @@ def compare(args):
         x = np.append(x, d, axis=0)
         samples += dom_samples
 
-    # set matrix colnames
-    columns = 'Sample\t' + '\t'.join(samples)
-    shortest_distance_matrix = [columns]
-    shared_overlap_matrix = [columns]
-    fraction_phenotype_matrix = [columns]
+    closest_out = open('%s/%s.closest.txt' % (args['output_dir'], args['clade']), 'w')
+    overlap_out = open('%s/%s.overlap.txt' % (args['output_dir'], args['clade']), 'w')
+    fraction_out = open('%s/%s.fraction.txt' % (args['output_dir'], args['clade']), 'w')
 
-    # generate matrix: minimum variant similarity, overlap, fraction mvs
-    for i in range(x.shape[0]):
-        sample = samples[i]
-        shortest_distance = (((x[i, :, :] > 0) *
-                              (x > 0)).sum(axis=2) > 0).sum(axis=1)
-        shared_overlap = ((x[i, :, :].sum(axis=1) > 0) *
-                          (x.sum(axis=2) > 0)).sum(axis=1)
-        fraction_phenotype = np.nan_to_num(shortest_distance / shared_overlap)
-        shortest_distance_matrix.append(
-            sample + '\t' +
-            '\t'.join([str(n) for n in np.asarray(shortest_distance)]))
-        shared_overlap_matrix.append(
-            sample + '\t' +
-            '\t'.join([str(n) for n in np.asarray(shared_overlap)]))
-        fraction_phenotype_matrix.append(
-            sample + '\t' +
-            '\t'.join([str(n) for n in np.asarray(fraction_phenotype)]))
+    with closest_out, overlap_out, fraction_out:
+        print("Sample", *samples, sep="\t", file=closest_out)
+        print("Sample", *samples, sep="\t", file=overlap_out)
+        print("Sample", *samples, sep="\t", file=fraction_out)
 
-    # write matrix files
-    with open('%s/%s.closest.txt' % (args['output_dir'], args['clade']),
-              'w') as out:
-        out.write('\n'.join(shortest_distance_matrix))
+        non_null_global = (x > 0)
+        non_null_positions = (x.sum(axis=2) > 0)
 
-    with open('%s/%s.overlap.txt' % (args['output_dir'], args['clade']),
-              'w') as out:
-        out.write('\n'.join(shared_overlap_matrix))
+        for i, (sample, sample_matrix) in enumerate(zip(samples, x)):
+            LOG.debug("Processing sample %s (%s/%s)...", sample, i + 1, len(samples))
+            shortest_distance = (((sample_matrix > 0) *
+                                  non_null_global).sum(axis=2) > 0).sum(axis=1)
+            shared_overlap = ((sample_matrix.sum(axis=1) > 0) *
+                              non_null_positions).sum(axis=1)
+            fraction_phenotype = np.nan_to_num(shortest_distance / shared_overlap)
 
-    with open('%s/%s.fraction.txt' % (args['output_dir'], args['clade']),
-              'w') as out:
-        out.write('\n'.join(fraction_phenotype_matrix))
+            print(sample, *shortest_distance, sep="\t", file=closest_out)
+            print(sample, *shared_overlap, sep="\t", file=overlap_out)
+            print(sample, *fraction_phenotype, sep="\t", file=fraction_out)
+
 
     # output dominant variants as msa
     if 'dominant_variants_msa' in args and args['dominant_variants_msa']:
@@ -128,6 +117,6 @@ def compare(args):
         seqs_msa = MultipleSeqAlignment(seqs_list)
 
         # write alignment fasta
-        msa_filename =os.path.join(args['output_dir'], args['clade'] + '.msa.fa')
+        msa_filename = os.path.join(args['output_dir'], args['clade'] + '.msa.fa')
         with open(msa_filename, 'w') as out:
             AlignIO.write(seqs_msa, out, 'fasta')
