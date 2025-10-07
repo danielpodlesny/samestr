@@ -127,6 +127,6 @@ def analyze_strain_events(sstr_data, similarity_threshold=0.999, overlap_thresho
     strain_cooccurrences = sstr_data.groupby(
         ['row', 'col'])[['shared_strain', 'analyzed_strain']].sum().reset_index()
     
-    sstr_data = sstr_data.sort(["row", "col", "clade"])
+    sstr_data = sstr_data.sort_values(["row", "col", "clade"])
         
     return sstr_data, strain_cooccurrences
