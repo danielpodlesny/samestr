@@ -1,5 +1,5 @@
 {% set name = "samestr" %}
-{% set version = "1.2025.10a" %}
+{% set version = "1.2025.101" %}
 
 package:
   name: "{{ name|lower }}"
