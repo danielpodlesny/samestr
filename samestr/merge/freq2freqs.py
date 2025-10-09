@@ -39,8 +39,12 @@ def freq2freqs(args):
             'Merging %s inputs: %s' % (len(args['input_files']), args['clade'])
         )
 
+    # assuming single samples...
+    n_samples = len(args['input_files'])
+
     # iterate samples of clade
     for i, (sample, file_path) in enumerate(args['input_files']):
+        LOG.debug('Merging sample %s (%s/%s)...', sample, i + 1, n_samples)
 
         sample_clade_freqs = load_numpy_file(file_path)
 
@@ -48,7 +52,7 @@ def freq2freqs(args):
             # final clade_freqs array will have dimensions (n_samples x clade_positions x 4)
             clade_freqs = np.zeros(
                 (
-                    len(args['input_files']),      # n_samples
+                    n_samples,                     # n_samples
                     sample_clade_freqs.shape[1],   # n_positions
                     sample_clade_freqs.shape[2],   # n_variants   
                 )
