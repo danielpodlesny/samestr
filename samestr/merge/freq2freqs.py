@@ -39,12 +39,22 @@ def freq2freqs(args):
             'Merging %s inputs: %s' % (len(args['input_files']), args['clade'])
         )
 
-    # assuming single samples...
-    n_samples = len(args['input_files'])
+    # we can have merged input from multiple samples
+    # need to count the samples in order to know the
+    # required size of the target array
+    # keep this as list, so it can be used to avoid
+    # additional instance checks downstream
+    input_sizes = [
+        (len(sample) if isinstance(sample, list) else 1)
+        for sample, _ in args['input_files']
+    ]
 
-    # iterate samples of clade
-    for i, (sample, file_path) in enumerate(args['input_files']):
-        LOG.debug('Merging sample %s (%s/%s)...', sample, i + 1, n_samples)
+    n_inputs = len(args['input_files'])
+
+    # iterate over samples of clade
+    for i, ((sample, file_path), isize) in enumerate(zip(args['input_files'], input_sizes)):
+        LOG.debug('Merging input file %s (%s/%s)...', sample, i + 1, n_inputs)
+        j = len(clade_samples)
 
         sample_clade_freqs = load_numpy_file(file_path)
 
@@ -52,14 +62,14 @@ def freq2freqs(args):
             # final clade_freqs array will have dimensions (n_samples x clade_positions x 4)
             clade_freqs = np.zeros(
                 (
-                    n_samples,                     # n_samples
+                    sum(input_sizes),                     # n_samples
                     sample_clade_freqs.shape[1],   # n_positions
                     sample_clade_freqs.shape[2],   # n_variants   
                 )
             )
 
         try:
-            clade_freqs[i] = sample_clade_freqs
+            clade_freqs[j:j + isize, :, :] = sample_clade_freqs
         except ValueError:
             LOG.error(
                 'Dimensions of arrays do not match: %s (%s|%s)' %
@@ -67,7 +77,9 @@ def freq2freqs(args):
             )
             return False
 
-        clade_samples += (sample if isinstance(sample, list) else (sample,))
+        # clade_samples += (sample if isinstance(sample, list) else (sample,))
+        clade_samples += (sample if isize > 1 else (sample,))
+
 
     # per clade, save freqs and names to file
     np.savez_compressed(output_file + '.npz', clade_freqs, allow_pickle=True)
