@@ -62,7 +62,7 @@ def freq2freqs(args):
             # final clade_freqs array will have dimensions (n_samples x clade_positions x 4)
             clade_freqs = np.zeros(
                 (
-                    sum(input_sizes),                     # n_samples
+                    sum(input_sizes),              # n_samples
                     sample_clade_freqs.shape[1],   # n_positions
                     sample_clade_freqs.shape[2],   # n_variants   
                 )
