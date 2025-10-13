@@ -39,7 +39,7 @@ def freq2freqs(args):
             'Merging %s inputs: %s' % (len(args['input_files']), args['clade'])
         )
 
-    # we can have merged input from multiple samples
+    # we can have merged input from multiple samples!
     # need to count the samples in order to know the
     # required size of the target array
     # keep this as list, so it can be used to avoid
@@ -77,9 +77,7 @@ def freq2freqs(args):
             )
             return False
 
-        # clade_samples += (sample if isinstance(sample, list) else (sample,))
         clade_samples += (sample if isize > 1 else (sample,))
-
 
     # per clade, save freqs and names to file
     np.savez_compressed(output_file + '.npz', clade_freqs, allow_pickle=True)
