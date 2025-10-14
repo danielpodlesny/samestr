@@ -49,7 +49,7 @@ def read_params():
         type=str,
         help='Set the verbosity of the program. '
              'Options: DEBUG, INFO, WARNING, ERROR, CRITICAL.')
-    
+
     parser.add_argument(
         '--random-seed',
         type=int,
