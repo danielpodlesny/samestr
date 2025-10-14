@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "samestr"
-version = "1.2025.101"
+version = "1.2025.102"
 authors = [
   { name="Daniel Podlesny", email="daniel.podlesny@embl.de" },
 ]
