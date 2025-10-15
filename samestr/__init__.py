@@ -1,2 +1,2 @@
 __author__ = 'Daniel Podlesny (daniel.podlesny@embl.de)'
-__version__ = '1.2025.101'
+__version__ = '1.2025.102'
