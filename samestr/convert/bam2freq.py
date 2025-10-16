@@ -1,64 +1,59 @@
-from os.path import isfile
-from os import remove
 import logging
+import subprocess
 
 from glob import glob
-from samestr.utils import ooSubprocess
+from os import remove
+
+from samestr.convert.convert import kp2np, pileup
+
 
 LOG = logging.getLogger(__name__)
 
 
+def results_incomplete(outdir):
+    return not glob('%s/*.np.cPickle' % outdir) or \
+       not glob('%s/*.npy' % outdir) or \
+       not glob('%s/*.npz' % outdir) or \
+       not glob('%s/*.npy.gz' % outdir)
+
+
 def bam2freq(arg):
-    """
-        converts mapping files
-        from binary sequence alignment (bam) format
-        to SNV profiles (numpy arrays).
-    """
 
-    oosp = ooSubprocess.ooSubprocess(tmp_dir=arg['tmp_dir'])
-    if not arg:
-        LOG.error('Empty input')
-        return None
-
-    if not isfile(arg['kp']):
-        LOG.debug('Piling: %s' % arg['sorted_bam'])
-        oosp.ex(
-            'kpileup.py',
-            args=[
+    cmd = ["samtools", "view", arg['sorted_bam']]
+    with open(arg["kp"], "wt") as kpileup_out, subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True) as bam_process:
+        position_stream = pileup(
+            # arg['bname'],
+            # arg['sorted_bam'],
+            bam_process.stdout,
+            arg['gene_file'],
+            arg['min_base_qual'],
+            arg['min_aln_qual'],
+            arg['min_vcov'],
+            outstream=kpileup_out,
+        )
+        if results_incomplete(arg['np']):            
+            LOG.debug('Converting: %s' % arg['kp'])
+            kp2np(
+                position_stream,
+                arg['contig_map'],
                 arg['bname'],
-                arg['sorted_bam'],
                 arg['gene_file'],
-                str(arg['min_base_qual']),
-                str(arg['min_aln_qual']),
-                str(arg['min_vcov'])
-            ],
-            out_fn=arg['kp'],
-            verbose=False)
+                arg['np'],
+            )
+        else:
+            LOG.warning(
+                'Skipping: %s. '
+                'Directory already contained np files: %s' %
+                (arg['bname'], arg['np'])
+            )
 
-    if not glob('%s/*.np.cPickle' % arg['np']) or \
-       not glob('%s/*.npy' % arg['np']) or \
-       not glob('%s/*.npz' % arg['np']) or \
-       not glob('%s/*.npy.gz' % arg['np']):
-        LOG.debug('Converting: %s' % arg['kp'])
-        oosp.ex('kp2np.py',
-                args=[
-                    '--kp', arg['kp'], '--map', arg['contig_map'], '--sample',
-                    arg['bname'], '--gene-file', arg['gene_file'],
-                    '--output-dir', arg['np']
-                ],
-                verbose=False)
-    else:
-        LOG.warning('Skipping: %s. '
-                    'Directory already contained np files: %s' %
-                    (arg['bname'], arg['np']))
+        if not arg['keep_tmp_files']:
+            remove(arg['gene_file'])
+            remove(arg['contig_map'])
+            remove(arg['kp'])
+            remove(arg['sorted_bam'])
+            remove(arg['sorted_bam'] + '.bai')
+
+        LOG.debug('Finished: %s' % arg['np'])
         
-    # clean up
-    if not arg['keep_tmp_files']:
-        remove(arg['gene_file'])
-        remove(arg['contig_map'])
-        remove(arg['kp'])
-        remove(arg['sorted_bam'])
-        remove(arg['sorted_bam'] + '.bai')
-
-    LOG.debug('Finished: %s' % arg['np'])
     return arg
