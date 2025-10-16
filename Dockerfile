@@ -1,7 +1,7 @@
 FROM condaforge/miniforge3:24.7.1-0
 
 LABEL maintainer="daniel.podlesny@gmail.com"
-LABEL version="1.2025.102"
+LABEL version="1.2025.103"
 LABEL description="samestr docker image"
 
 
