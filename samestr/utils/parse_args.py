@@ -373,9 +373,17 @@ def read_params():
     merge_input.add_argument(
         '--input-files',
         nargs='+',
-        required=True,
+        required=False,
         metavar='NPY',
         default=[],
+        type=str,
+        help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
+
+    merge_input.add_argument(
+        '--input-dir',
+        required=False,
+        metavar='INPUT_DIR',
+        default='.',
         type=str,
         help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
 

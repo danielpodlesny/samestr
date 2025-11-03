@@ -10,6 +10,7 @@ from datetime import datetime
 import logging
 import logging.config
 import pathlib
+import glob
 
 import numpy as np
 
@@ -186,10 +187,19 @@ def samestr(input_args):
 
     elif input_args['command'] == 'merge':
 
+        if not input_args['input_files'] and not input_args['input_dir']:
+            raise ValueError("Neither --input-files not --input-dir are set.")
+        elif input_args['input_files'] and input_args['input_dir']:
+            raise ValueError("Need either --input-files or --input-dir to be set.")
+        elif input_args['input_files']:
+            input_npz = input_args['input_files']
+        else:
+            input_npz = glob.glob(os.path.join(args['input_dir'], "**.npz"), recursive=True,)
+
         clade_file_dict = {}
 
         # group input files by clade
-        for file_path in input_args['input_files']:
+        for file_path in input_npz:
             fn = basename(file_path)
             clade = fn.split('.')[0]
 
@@ -204,18 +214,18 @@ def samestr(input_args):
                 sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
             # skip if not in selected clade
-            if input_clade is not None and clade not in input_clade:
-                continue
-
-            clade_file_dict.setdefault(clade, []).append([sample, file_path])
+            # if input_clade is not None and clade not in input_clade:
+            #     continue
+            if input_clade is None or clade in input_clade:
+                clade_file_dict.setdefault(clade, []).append([sample, file_path])
 
         cmd_args = [
-               {
-                    "clade": clade,
-                    "input_files": files,
-                    "output_dir": input_args["output_dir"],
-               }
-               for clade, files in clade_file_dict.items()
+            {
+                "clade": clade,
+                "input_files": files,
+                "output_dir": input_args["output_dir"],
+            }
+            for clade, files in clade_file_dict.items()
         ]        
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
