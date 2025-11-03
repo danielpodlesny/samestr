@@ -2,41 +2,48 @@
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
 
 
-from sys import stderr, argv
+import glob
+import logging
 import os
+import pathlib
+
+from datetime import datetime
 from os.path import basename, dirname, realpath, isdir, isfile
 from os import environ, makedirs
-from datetime import datetime
-import logging
-import logging.config
-import pathlib
-import glob
+from sys import stderr, argv
 
 import numpy as np
 
-
 from samestr import __version__
-from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
-from samestr.utils.ooSubprocess import serialize, parallelize_async
-from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
-    set_output_structure, clade_path
-from samestr.utils.parse_args import read_params
 
 from samestr.convert import sam2bam, concatenate_gene_files, bam2freq
+from samestr.compare import compare
+from samestr.db import generate_db
 from samestr.extract import ref2freq
 from samestr.filter import filter_freqs
 from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
-from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import generate_db
-
-from samestr.utils.parse_args import read_params
 from samestr.utils.citations import citations
+from samestr.utils.file_mapping import (
+	clade_path,
+    get_uniform_extension, 
+    set_output_structure,
+    spread_args_by_input_files,
+)
+from samestr.utils.ooSubprocess import parallelize_async, serialize
+from samestr.utils.parse_args import read_params
+from samestr.utils.utilities import (
+	list_group_by_basename,
+	load_samestr_db_manifest,
+	read_json,
+	write_json,
+)
+
 
 SAMESTR_DIR = dirname(realpath(__file__))
-CONVERT_DIR =os.path.join(SAMESTR_DIR, 'convert', '')
-UTILS_DIR =os.path.join(SAMESTR_DIR, 'utils', '')
+CONVERT_DIR = os.path.join(SAMESTR_DIR, 'convert', '')
+UTILS_DIR = os.path.join(SAMESTR_DIR, 'utils', '')
 environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 
 

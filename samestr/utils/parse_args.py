@@ -383,7 +383,6 @@ def read_params():
         '--input-dir',
         required=False,
         metavar='INPUT_DIR',
-        default='.',
         type=str,
         help='Path to input SNV profiles. Should have .npy, .npz or .npy.gz extension.')
 
