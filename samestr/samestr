@@ -129,8 +129,17 @@ def samestr(input_args):
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
             [input_args['markers_fasta']], accepted_extensions)
+    elif input_args['command'] not in ('summarize',):
 
-    elif input_args['command'] not in ('summarize'):
+        if input_args['command'] == 'merge' and not input_args['input_files']:            
+            if not input_args['input_dir']:
+                raise ValueError("Neither --input-files not --input-dir are set.")
+            else:
+                args['input_files'] = glob.glob(os.path.join(args['input_dir'], "**.npz"), recursive=True,)
+        
+        elif input_args['input_files'] and input_args['input_dir']:
+            raise ValueError("--input-files and --input-dir cannot be used simultaneously.")
+                
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
 
@@ -187,19 +196,10 @@ def samestr(input_args):
 
     elif input_args['command'] == 'merge':
 
-        if not input_args['input_files'] and not input_args['input_dir']:
-            raise ValueError("Neither --input-files not --input-dir are set.")
-        elif input_args['input_files'] and input_args['input_dir']:
-            raise ValueError("Need either --input-files or --input-dir to be set.")
-        elif input_args['input_files']:
-            input_npz = input_args['input_files']
-        else:
-            input_npz = glob.glob(os.path.join(args['input_dir'], "**.npz"), recursive=True,)
-
         clade_file_dict = {}
 
         # group input files by clade
-        for file_path in input_npz:
+        for file_path in args['input_files']:
             fn = basename(file_path)
             clade = fn.split('.')[0]
 
