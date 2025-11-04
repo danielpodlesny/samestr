@@ -138,16 +138,15 @@ def samestr(input_args):
             [input_args['markers_fasta']], accepted_extensions)
     elif input_args['command'] not in ('summarize',):
 
-        if input_args['command'] == 'merge' and not input_args['input_files']:            
-            if not input_args['input_dir']:
+        if input_args['command'] == 'merge':
+            if not input_args['input_dir'] and not input_args['input_files']:
                 raise ValueError("Neither --input-files not --input-dir are set.")
-            else:
+            elif input_args['input_files'] and input_args['input_dir']:
+                raise ValueError("--input-files and --input-dir cannot be used simultaneously.")            
+            elif args['input_dir']:
                 args['input_files'] = glob.glob(os.path.join(args['input_dir'], "*", "*.npz"), recursive=True,)
                 if not args['input_files']:
                     raise ValueError(f"Cannot find any .npz files in {args['input_dir']}.")
-        
-        elif input_args['input_files'] and input_args['input_dir']:
-            raise ValueError("--input-files and --input-dir cannot be used simultaneously.")
                 
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
