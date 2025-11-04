@@ -222,9 +222,7 @@ def samestr(input_args):
             else:
                 sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
-            # skip if not in selected clade
-            # if input_clade is not None and clade not in input_clade:
-            #     continue
+            # only process selected clades (or all clades if no selected clade)
             if input_clade is None or clade in input_clade:
                 clade_file_dict.setdefault(clade, []).append([sample, file_path])
 
