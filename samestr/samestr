@@ -208,7 +208,7 @@ def samestr(input_args):
         clade_file_dict = {}
 
         # group input files by clade
-        for file_path in args['input_files']:
+        for file_path in sorted(args['input_files']):
             fn = basename(file_path)
             clade = fn.split('.')[0]
 
