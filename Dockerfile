@@ -1,16 +1,13 @@
-FROM condaforge/miniforge3:25.9.1-0
+FROM condaforge/miniforge3:24.7.1-0
 
-LABEL maintainer="daniel.podlesny@gmail.com"
+LABEL maintainer="daniel.podlesny@gmail.com,cschu1981@gmail.com"
 LABEL version="1.2025.11"
 LABEL description="SameStr Docker Image"
-
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update
 RUN apt upgrade -y
-
-## RUN apt install -y wget python3-pip git dirmngr gnupg ca-certificates build-essential libssl-dev libcurl4-gnutls-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
 RUN apt clean
 
 ADD LICENSE MANIFEST.in README.md environment.yml pyproject.toml requirements.txt setup.py /opt/software/samestr/
