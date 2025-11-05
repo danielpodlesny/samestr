@@ -1,8 +1,10 @@
-from os.path import isfile
 import logging
 
-from samestr.utils import ooSubprocess, clade_path, read_json
+from os.path import isfile
+
+from samestr.utils import ooSubprocess, clade_path
 from samestr.summarize.read_taxonomic_profiles import get_clade_profile_dict, identify_taxonomic_profile_database
+
 
 LOG = logging.getLogger(__name__)
 
