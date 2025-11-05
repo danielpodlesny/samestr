@@ -2,40 +2,48 @@
 """SameStr: Shared Strains Identification in Metagenomic Samples."""
 
 
-from sys import stderr, argv
+import glob
+import logging
 import os
+import pathlib
+
+from datetime import datetime
 from os.path import basename, dirname, realpath, isdir, isfile
 from os import environ, makedirs
-from datetime import datetime
-import logging
-import logging.config
-import pathlib
+from sys import stderr, argv
 
 import numpy as np
 
-
 from samestr import __version__
-from samestr.utils.utilities import list_group_by_basename, collect_input_files, load_samestr_db_manifest, write_json, read_json
-from samestr.utils.ooSubprocess import serialize, parallelize_async
-from samestr.utils.file_mapping import spread_args_by_input_files, get_uniform_extension, \
-    set_output_structure, clade_path
-from samestr.utils.parse_args import read_params
 
 from samestr.convert import sam2bam, concatenate_gene_files, bam2freq
+from samestr.compare import compare
+from samestr.db import generate_db
 from samestr.extract import ref2freq
 from samestr.filter import filter_freqs
 from samestr.merge import freq2freqs
 from samestr.stats import aln2stats
-from samestr.compare import compare
 from samestr.summarize import summarize
-from samestr.db import generate_db
-
-from samestr.utils.parse_args import read_params
 from samestr.utils.citations import citations
+from samestr.utils.file_mapping import (
+	clade_path,
+    get_uniform_extension, 
+    set_output_structure,
+    spread_args_by_input_files,
+)
+from samestr.utils.ooSubprocess import parallelize_async, serialize
+from samestr.utils.parse_args import read_params
+from samestr.utils.utilities import (
+	list_group_by_basename,
+	load_samestr_db_manifest,
+	read_json,
+	write_json,
+)
+
 
 SAMESTR_DIR = dirname(realpath(__file__))
-CONVERT_DIR =os.path.join(SAMESTR_DIR, 'convert', '')
-UTILS_DIR =os.path.join(SAMESTR_DIR, 'utils', '')
+CONVERT_DIR = os.path.join(SAMESTR_DIR, 'convert', '')
+UTILS_DIR = os.path.join(SAMESTR_DIR, 'utils', '')
 environ['PATH'] += ':' + UTILS_DIR + ':' + CONVERT_DIR
 
 
@@ -128,8 +136,18 @@ def samestr(input_args):
     if input_args['command'] == 'db':
         input_args['input_extension'] = get_uniform_extension(
             [input_args['markers_fasta']], accepted_extensions)
+    elif input_args['command'] not in ('summarize',):
 
-    elif input_args['command'] not in ('summarize'):
+        if input_args['command'] == 'merge':
+            if not input_args['input_dir'] and not input_args['input_files']:
+                raise ValueError("Neither --input-files not --input-dir are set.")
+            elif input_args['input_files'] and input_args['input_dir']:
+                raise ValueError("--input-files and --input-dir cannot be used simultaneously.")            
+            elif args['input_dir']:
+                args['input_files'] = glob.glob(os.path.join(args['input_dir'], "*", "*.npz"), recursive=True,)
+                if not args['input_files']:
+                    raise ValueError(f"Cannot find any .npz files in {args['input_dir']}.")
+                
         input_args['input_extension'] = get_uniform_extension(
             input_args['input_files'], accepted_extensions)
 
@@ -189,7 +207,7 @@ def samestr(input_args):
         clade_file_dict = {}
 
         # group input files by clade
-        for file_path in input_args['input_files']:
+        for file_path in sorted(args['input_files']):
             fn = basename(file_path)
             clade = fn.split('.')[0]
 
@@ -203,19 +221,17 @@ def samestr(input_args):
             else:
                 sample = fn.split(input_args['input_extension'])[0].replace(f'{clade}.', '')
 
-            # skip if not in selected clade
-            if input_clade is not None and clade not in input_clade:
-                continue
-
-            clade_file_dict.setdefault(clade, []).append([sample, file_path])
+            # only process selected clades (or all clades if no selected clade)
+            if input_clade is None or clade in input_clade:
+                clade_file_dict.setdefault(clade, []).append([sample, file_path])
 
         cmd_args = [
-               {
-                    "clade": clade,
-                    "input_files": files,
-                    "output_dir": input_args["output_dir"],
-               }
-               for clade, files in clade_file_dict.items()
+            {
+                "clade": clade,
+                "input_files": files,
+                "output_dir": input_args["output_dir"],
+            }
+            for clade, files in clade_file_dict.items()
         ]        
 
         cmd_args = parallelize_async(freq2freqs, cmd_args, input_args['nprocs'])
