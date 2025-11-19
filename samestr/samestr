@@ -159,7 +159,7 @@ def samestr(input_args):
     if not isdir(input_args['output_dir']):
         pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
-    input_clade = input_args.get("species")
+    input_clade = input_args.get("clade")
 
     ################################
     ## process individual commands
