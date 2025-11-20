@@ -27,18 +27,18 @@ def sam2bam(arg):
             error_pipe = None
             LOG.debug('Converting: %s' % (arg['sam']))
             # decompress
-            p1 = oosp.chain('dump_file.py',
-                            args=['--input_file', arg['sam']],
-                            stderr=error_pipe)
+            # p1 = oosp.chain('dump_file.py',
+            #                 args=['--input_file', arg['sam']],
+            #                 stderr=error_pipe)
 
             # filter len
             p2 = oosp.chain(
                 'filter_sam.py',
                 args=[
+                    arg['sam'],
                     str(int(arg['min_aln_identity'] * 100)),  # float
                     str(arg['min_aln_len'])
                 ],
-                in_pipe=p1,
                 stderr=error_pipe)
 
             # sam to bam
