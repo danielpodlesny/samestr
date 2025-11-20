@@ -144,7 +144,7 @@ def samestr(input_args):
             elif input_args['input_files'] and input_args['input_dir']:
                 raise ValueError("--input-files and --input-dir cannot be used simultaneously.")            
             elif args['input_dir']:
-                args['input_files'] = glob.glob(os.path.join(args['input_dir'], "*", "*.npz"), recursive=True,)
+                args['input_files'] = glob.glob(os.path.join(args['input_dir'], "**", "*.npz"), recursive=True,)
                 if not args['input_files']:
                     raise ValueError(f"Cannot find any .npz files in {args['input_dir']}.")
                 
@@ -159,7 +159,7 @@ def samestr(input_args):
     if not isdir(input_args['output_dir']):
         pathlib.Path(input_args['output_dir']).mkdir(exist_ok=True, parents=True)
 
-    input_clade = input_args.get("species")
+    input_clade = input_args.get("clade")
 
     ################################
     ## process individual commands
